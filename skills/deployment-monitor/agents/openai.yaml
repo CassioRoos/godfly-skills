@@ -1,0 +1,28 @@
+# NOTE: the MCP server aliases below are EXAMPLES of an evidence toolchain — map them to your own servers or remove them.
+interface:
+  display_name: "Deployment Monitor"
+  short_description: "Watch deployments with evidence-backed alerts"
+  default_prompt: "Use $deployment-monitor to monitor a deployment, gather Datadog, database, Kubernetes, RabbitMQ, and GitHub evidence, and alert me on anomalies."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "datadog"
+      description: "Primary source for logs, metrics, APM, monitors, and deployment markers."
+      transport: "streamable_http"
+      url: "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+    - type: "mcp"
+      value: "postgres_prod"
+      description: "Read-only production Postgres evidence."
+    - type: "mcp"
+      value: "postgres_staging"
+      description: "Read-only staging Postgres evidence."
+    - type: "mcp"
+      value: "rabbit_ops"
+      description: "RabbitMQ operational evidence."
+      transport: "streamable_http"
+      url: "http://localhost:8787/mcp"
+    - type: "mcp"
+      value: "kubernetes_ro"
+      description: "Read-only Kubernetes runtime evidence."
+policy:
+  allow_implicit_invocation: true

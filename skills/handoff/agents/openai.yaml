@@ -1,0 +1,4 @@
+interface:
+  display_name: "Handoff"
+  short_description: "Create compact continuation briefs for another Codex session"
+  default_prompt: "Create a compact handoff for the next Codex session, including current state, evidence, artifacts, suggested skills, open risks, and next steps."

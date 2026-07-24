@@ -1,0 +1,17 @@
+interface:
+  display_name: "MeanQA: Cruel QA"
+  short_description: "Evidence-first QA sweeps with bug artifacts"
+  default_prompt: "Use $mean-qa to validate this flow with evidence-backed QA, executable bug artifacts, and only the layers needed."
+policy:
+  # Not runtime-enforced; documents the safety contract defined in SKILL.md
+  # (Environment Boundary). If you deploy this skill in a new runtime, wire
+  # these rules into real tool permissions where the runtime supports it.
+  read_only_default: true
+  requires_confirmation:
+    - any PROD-related tool action, including read-only inspection (see SKILL.md Environment Boundary)
+    - mutations, publishes, replays, or cleanup outside proven fake/safe ST/local scope
+    - hardening probes against any PROD-related surface
+  never:
+    - guess credentials or bypass MFA
+    - write secrets, tokens, cookies, private URLs, or PII into artifacts
+    - report a skipped or unproven evidence layer as passed
