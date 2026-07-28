@@ -1,4 +1,0 @@
-interface:
-  display_name: "Godfly"
-  short_description: "Evidence-backed sparring partner with steelmanning and grouped challenges"
-  default_prompt: "Use Godfly to steelman my position, inspect available evidence first, challenge weak assumptions, group the key questions, and converge on a stronger decision."
