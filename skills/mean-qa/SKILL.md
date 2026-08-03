@@ -1,6 +1,6 @@
 ---
 name: mean-qa
-description: Agentic, adversarial QA workflow for validating web, API, backend, data, runtime, and messaging behavior with evidence-backed pass/fail classifications and executable bug artifacts. Use when the agent is asked to run or plan MeanQA, Cruel QA, agentic QA, web QA sweeps, ST/local validation, browser/GraphQL/gRPC/API QA, evidence tables, bug artifact creation/revalidation/metrics, regression graduation, input hardening, or cross-layer proof using browser, database, Datadog, Kubernetes, RabbitMQ, logs, traces, or repo test harnesses.
+description: Agentic, adversarial QA workflow for validating web, API, backend, data, runtime, and messaging behavior with evidence-backed pass/fail classifications and executable bug artifacts. Use when Codex is asked to run or plan MeanQA, Cruel QA, agentic QA, web QA sweeps, ST/local validation, browser/GraphQL/gRPC/API QA, evidence tables, bug artifact creation/revalidation/metrics, regression graduation, input hardening, or cross-layer proof using browser, database, Datadog, Kubernetes, RabbitMQ, logs, traces, or repo test harnesses.
 ---
 
 # MeanQA
@@ -14,13 +14,18 @@ The purpose is to find bugs and prevent fake passes. Do not soften a broken or u
 1. Read repo-local instructions before testing. Use [repo-discovery.md](references/repo-discovery.md).
 2. Treat repo-local contracts, ledgers, runbooks, and harnesses as authority over this generic skill.
 3. Prove mutation targets are safe/fake before any mutating click, API call, broker replay, or cleanup.
-4. Capture evidence before action when possible: time window, network, console/logs, screenshots or payloads, request/correlation IDs.
+4. Capture evidence before action when possible: time window, network, console/logs, screenshots or payloads, request/correlation IDs. Every executed case retains its artifacts under `cases/<case-id>/` ([test-cases.md](references/test-cases.md)); a case marked `pass` with no retained evidence is `unproven`. Redact on the way in -- never write raw exports, credentials, or personal data to disk.
 5. Use only relevant evidence layers. Exhaustive checks are not rigor; they are noise with a clipboard.
 6. Missing evidence is `unproven` or `unverified`, not `passed`.
+6a. **Name the oracle or it is not a bug.** Every finding states what the behavior is inconsistent with, and why. Use [oracles.md](references/oracles.md). A finding whose only backing is "this isn't how software usually works" is a question for the team, filed as an Issue -- never a Bug.
+6b. **Separate Bugs from Issues.** A Bug is a concern about the product. An Issue is a question or obstacle about the testing or the project. Collapsing them is how QA output becomes noise.
+6c. **No Bug ships without passing the gate** in [finding-gate.md](references/finding-gate.md): reproduced twice from clean state, minimized, worst consequence attempted, one sibling surface checked, impact stated for a named stakeholder, neutral tone. Anything that fails reproduction is an Issue.
+6d. **Never claim verification.** Banned: "it works", "verified", "no bugs", "fully tested", "looks good". Required: "I ran X, I observed Y, I did not observe Z, I did not test W." A clean result is an absence of observed failure under a stated configuration, never the presence of correctness.
 7. Continue after failures unless credentials are invalid, the environment is unreachable, or all remaining mutation targets are unsafe/ambiguous.
 8. Never guess credentials, bypass MFA, or turn access failure into a fake QA result.
 9. Never write secrets, tokens, OTPs, cookies, private URLs, raw exports, or PII into artifacts, ledgers, prompts, or committed files.
 10. When the repo has a QA ledger, every executed test/flow must produce a ledger/evidence-table row with status, inputs, outputs, evidence links, and unresolved gaps.
+10a. Bookkeeping follows findings; it never precedes them. Do not pre-register evidence tables, ledger rows, or bug artifacts for a run that has not happened or a defect not yet observed — a table of empty rows is not rigor, it is paperwork cosplay. Emit each artifact when its finding exists.
 11. Any product bug found during the run must produce its own countable bug artifact, not just a free-form finding. One failed flow can expose multiple bugs; emit one bug artifact per distinct defect. Findings explain; bug artifacts measure.
 
 ## Environment Boundary
@@ -37,13 +42,15 @@ An environment you cannot classify is PROD until proven otherwise.
 ## Run Loop
 
 1. **Discover**: Read repo instructions, current ledger/state, scenarios, expected behavior, safety boundary, and harness conventions.
-2. **Plan evidence**: Decide the required layers with the router below. Name layers that are out of scope.
-3. **Preflight**: Confirm environment, auth path, fake/safe target scope, deployed/runtime identity when relevant, and artifact destination.
-4. **Execute**: Run the flow. Capture UI/caller result, network/API boundary, timestamps, IDs, console/log errors, and artifacts.
-5. **Attack**: After the scripted path, try relevant hardening probes: empty required fields, invalid types, max length, unicode, double submit, stale tab, back-button repeat, pagination/filter/sort edges, permission negatives. Hardening probes are mutations until proven otherwise. Against any PROD-related surface they are forbidden by default; a read-only PROD evidence envelope never authorizes them. Run them only against ST/local targets with proven fake/safe scope, or after a separate explicit PROD confirmation naming the exact probe types and targets.
-6. **Corroborate**: Use data, runtime, observability, or message-broker proof only when the changed behavior or claim touches those surfaces.
-7. **Classify**: Use `passed`, `failed-assertion`, `failed-backend`, `flake-suspect`, `unproven`, `blocked-missing-input`, `blocked-ambiguous-target`, or `skipped`. `flake-suspect` is never a final verdict: retry the flow once, then reclassify as `passed` (with the flake noted) or the honest failure state.
-8. **Record**: Generate a reviewer-grade evidence pack: run summary, evidence table, per-test ledger rows, before/after screenshots for screen-checked flows, sanitized endpoint inputs/outputs, create/update/delete/event proof when touched, raw or summarized test output, countable bug artifacts for every distinct product defect, findings, open blockers, and regression candidates. Update the repo ledger only when the task expects it and the repo says where it lives.
+2. **Sweep coverage**: Walk product elements and quality criteria with [coverage-sweep.md](references/coverage-sweep.md); mark every cell relevant or not-relevant **with a reason**, then turn relevant cells into charters. Silent skips are invisible coverage gaps.
+3. **Design the attack**: Write the campaign as numbered cases in [test-cases.md](references/test-cases.md) format -- stable ID, plain-language title, severity, named fixture, literal inputs, falsification condition. Build it with [attack-design.md](references/attack-design.md) before planning evidence — invariants, the six axes, the cut corners, ranked by blast radius. **Non-skippable.** The scripted path is the client's list; the attack campaign is yours, and it is why you were called.
+4. **Plan evidence**: Decide the required layers with the router below. Name layers that are out of scope.
+5. **Preflight**: Confirm environment, auth path, fake/safe target scope, deployed/runtime identity when relevant, and artifact destination.
+6. **Execute**: Run the flow. Capture UI/caller result, network/API boundary, timestamps, IDs, console/log errors, and artifacts.
+7. **Attack**: Execute the step-3 campaign, hardest-hitting first. Then add relevant hardening probes: empty required fields, invalid types, max length, unicode, double submit, stale tab, back-button repeat, pagination/filter/sort edges, permission negatives. Hardening probes are mutations until proven otherwise. Against any PROD-related surface they are forbidden by default; a read-only PROD evidence envelope never authorizes them. Run them only against ST/local targets with proven fake/safe scope, or after a separate explicit PROD confirmation naming the exact probe types and targets.
+8. **Corroborate**: Use data, runtime, observability, or message-broker proof only when the changed behavior or claim touches those surfaces.
+9. **Classify**: Use `passed`, `failed-assertion`, `failed-backend`, `flake-suspect`, `unproven`, `blocked-missing-input`, `blocked-ambiguous-target`, or `skipped`. `flake-suspect` is never a final verdict: retry the flow once, then reclassify as `passed` (with the flake noted) or the honest failure state.
+10. **Record**: Generate a reviewer-grade evidence pack: run summary, evidence table, per-test ledger rows, before/after screenshots for screen-checked flows, sanitized endpoint inputs/outputs, create/update/delete/event proof when touched, raw or summarized test output, countable bug artifacts for every distinct product defect, findings, open blockers, and regression candidates. Update the repo ledger only when the task expects it and the repo says where it lives.
 
 ## Bug Artifact Rule
 
@@ -77,13 +84,18 @@ Load only the references needed for the task:
 
 | Situation | Required references | Typical proof |
 |---|---|---|
-| Any MeanQA run | [repo-discovery.md](references/repo-discovery.md), [artifacts-and-ledger.md](references/artifacts-and-ledger.md) | Repo contract, scenario state, run artifact plan |
+| Any MeanQA run | [repo-discovery.md](references/repo-discovery.md), [attack-design.md](references/attack-design.md), [artifacts-and-ledger.md](references/artifacts-and-ledger.md) | Repo contract, scenario state, run artifact plan |
 | User-facing web behavior | [web-evidence.md](references/web-evidence.md) | Screenshot/DOM, console, network ops, request IDs |
 | Persisted state, mutations, parity, cleanup | [data-evidence.md](references/data-evidence.md) | Read-only DB/API before-after proof |
 | Deployed version, routing, pod health, runtime ownership | [runtime-evidence.md](references/runtime-evidence.md) | Read-only Kubernetes/GitOps/logs plus deployment identity |
 | Events, outbox, queues, DLQ, broker-only flows | [message-evidence.md](references/message-evidence.md) | Rabbit/broker binding, publish/consume, DLQ/backlog, outbox correlation |
 | Ambiguous behavior, failure mapping, regression graduation | [code-and-regressions.md](references/code-and-regressions.md) | Source mapping, focused tests, Playwright/service regression |
 | Bug artifact creation, recurrence, metrics, or execution status | [artifacts-and-ledger.md](references/artifacts-and-ledger.md), [bug-artifact-process.md](references/bug-artifact-process.md) | Bug index, one artifact per defect, reproduction plan, validation plan, regression target |
+| Deciding what to test, and recording what you chose not to | [coverage-sweep.md](references/coverage-sweep.md) | Element/criteria sweep with reasons, charters, tour sampler |
+| Writing executable, re-runnable test cases | [test-cases.md](references/test-cases.md) | Stable IDs, fixtures, input tables, oracle per case, graduation |
+| Writing up any run | [session-report.md](references/session-report.md) | One-page verdict, coverage manifest, Bugs vs Issues, session sheet |
+| Deciding whether an observation is actually a defect | [oracles.md](references/oracles.md) | Named oracle, cited artifact, downgrade to Issue when unbacked |
+| Before emitting any bug | [finding-gate.md](references/finding-gate.md) | Reproduction, minimization, scope, stakeholder impact, falsification |
 | Stuck, unsafe, contradictory, or product-ambiguous behavior | [human-escalation.md](references/human-escalation.md) | Grouped question with recommendation and risk |
 
 ## Subagents
@@ -119,6 +131,10 @@ Do not ask for guidance when a read-only non-PROD repo/tool check can answer the
 
 ## Output Standard
 
-Lead with the verdict. Then show the evidence table, generated docs/artifacts, bug artifacts, before/after screenshot references, test evidence, failures, unproven layers, hardening findings, blockers, and fastest next validation.
+Follow the contract in [session-report.md](references/session-report.md): **page one is one page**, everything else linked. Verdict, worst findings, coverage manifest, what you could not verify, next action.
 
-If the flow is broken, say it is broken. If it is unproven, say it is unproven. If it passed only because you skipped the scary layer, that is not a pass; that is QA cosplay.
+Lead with the verdict, then the findings **ordered by blast radius** — silent money or data loss first, cosmetics last. Never order by the sequence you happened to test in, and never by how easy each was to write up. A reader who stops after the first finding must have read the worst one.
+
+Then: Then show the evidence table, generated docs/artifacts, bug artifacts, before/after screenshot references, test evidence, failures, unproven layers, hardening findings, blockers, and fastest next validation.
+
+State findings in safety language ([finding-gate.md](references/finding-gate.md)) -- what you ran, what you observed, what you did not test. If the flow is broken, say it is broken. If it is unproven, say it is unproven. If it passed only because you skipped the scary layer, that is not a pass; that is QA cosplay.
