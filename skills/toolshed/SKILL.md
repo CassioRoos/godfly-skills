@@ -72,6 +72,7 @@ Toolshed is **one shelf**. Do not stuff every activity into it.
 |---|---|
 | Task resume state | **toolshed** |
 | Adversarial review | `godfly` |
+| Settled cross-task claims | `docs/verdicts/` (godfly verdict graph) |
 | ST/QA campaigns | `mean-qa` |
 | Post-deploy watch | `deployment-monitor` |
 | Incident paperwork | `incident-validator` |
@@ -115,7 +116,9 @@ Toolshed is **one shelf**. Do not stuff every activity into it.
 ### Close — `/toolshed close <slug>`
 
 1. `assert-started.sh`; `assert-state.sh` (soft if legacy).
-2. Sweep unpromoted contract decisions (highest-risk failure mode).
+2. Sweep unpromoted contract decisions (highest-risk failure mode). Also sweep
+   settled cross-task claims that never got a verdict node — write them to
+   `docs/verdicts/` (godfly's verdict graph) before the folder dies.
 3. Genre-map → ADR / spec delta / RFC / runbook (`spec-adr-builder` if available).
    Inline load-bearing evidence that lives here; link PR/CI evidence otherwise.
 4. Stamp deliverables: `Toolshed: <repo>@<sha>, docs/work/<slug>/`.
