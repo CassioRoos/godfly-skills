@@ -1,8 +1,8 @@
 # godfly-skills
 
-**18 skills for Claude Code and Codex CLI that form one system: an adversarial
-reviewer, the evidence-grounded toolkit it draws on, and the production-ops
-discipline it feeds into.**
+**19 skills for Claude Code and Codex CLI that form one system: an adversarial
+reviewer, the evidence-grounded toolkit it draws on, the production-ops
+discipline it feeds into, and the gauntlet that proves any of it actually works.**
 
 Not a grab-bag. Every skill here has a deliberately carved territory and knows
 exactly which sibling to hand off to when the question isn't its job — and the
@@ -135,6 +135,7 @@ flowchart TD
 | [toolshed](skills/toolshed/SKILL.md) | Mortal working state for one task under `docs/work/<slug>/` — deleted at close, survivors become ADRs/specs. |
 | [handoff](skills/handoff/SKILL.md) | Compact continuation notes so the next session/agent doesn't reconstruct the thread. |
 | [spec-adr-builder](skills/spec-adr-builder/SKILL.md) | Specs, ADRs, and RFCs with non-goals, alternatives, rollout, and rollback. |
+| [gauntlet](skills/gauntlet/SKILL.md) | Empirically tests whether a skill beats the raw model: planted-flaw fixtures, no-skill control arms, blind judging, pressure tests, cross-model runs via installed CLIs. Every finding becomes a permanent rule in the skill under test. |
 
 ## Install
 
