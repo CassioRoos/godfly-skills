@@ -18,7 +18,7 @@ investigation.
 dose differs from dose_per_kg × weight
 **Fixture:** `P-PAED` (3.2 kg)
 
-**Hypothesis.** `int(x + 0.5)` rounds to whole milligrams, so anything under
+**Hypothesis.** the dose calculation rounds to whole milligrams, so anything under
 0.5 mg becomes zero and small doses carry double-digit percentage error.
 
 | Sub | Input | Expected | If defective |
