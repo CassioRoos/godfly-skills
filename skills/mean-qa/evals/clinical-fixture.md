@@ -1,6 +1,6 @@
 # Feature: Inpatient medication ordering & administration — ready for QA
 
-**Service:** `svc-orders` · **Branch:** `feat/mar-v2` · **Target env:** ST
+**Repo:** `medication-orders` · **Branch:** `feat/mar-v2` · **Target env:** ST
 **Checks:** ✅ green · unit coverage 79%
 
 ## Product spec

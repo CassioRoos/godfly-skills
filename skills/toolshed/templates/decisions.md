@@ -1,7 +1,7 @@
 # {{SLUG}} — decisions (proto-ADRs)
 
 Upsert-only. Contract-changing decisions promote to their permanent home the
-moment they are decided (boundary rule — see [../WORKBENCH.md](../WORKBENCH.md)).
+moment they are decided (boundary rule — see [../WORKBENCH.md](../SKILL.md)).
 At close, `decided` records transform into ADRs; keep them ADR-shaped as you
 write them and close-out is mechanical.
 

@@ -49,7 +49,7 @@ understand the risk.
 ## The case list
 
 The campaign and its results are a numbered case list in
-[test-cases.md](references/test-cases.md) format, grouped into phases ordered by
+[test-cases.md](test-cases.md) format, grouped into phases ordered by
 blast radius, with a status per stable ID. This is the layer that makes the
 report both scannable and executable: a reader triages on titles and severities,
 an executor runs the input tables, and a later run diffs statuses by ID.
