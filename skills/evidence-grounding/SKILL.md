@@ -40,7 +40,7 @@ Not all evidence is equal. Rate what you find:
 | Tier | Type | Example | Weight |
 |------|------|---------|--------|
 | **S** | Measured data from this system | "Your p99 latency is 2.3s, here's the trace" | Definitive |
-| **A** | Code/config in this codebase | "Line 47 of handler.go doesn't rollback on failure" | Strong |
+| **A** | Code/config in this codebase | "Line 47 of the request handler does not roll back on failure" | Strong |
 | **B** | Production post-mortem from similar system | "Segment reversed their microservices -- same pattern" | Strong |
 | **C** | Documented best practice with rationale | "Go team recommends X because Y" | Moderate |
 | **D** | General industry pattern | "Most teams at this scale use X" | Weak |

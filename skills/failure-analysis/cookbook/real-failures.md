@@ -28,9 +28,9 @@ When reviewing a system, check for these patterns. Each has been responsible for
 **Check:** Is the connection pool sized appropriately? Are connections returned promptly? Any long-running queries?
 **Fix:** Right-size pool, add connection timeout, fix slow queries, add circuit breaker.
 
-### Goroutine/Thread Leak
-**Pattern:** Goroutines/threads created but never cleaned up. Memory grows over time until OOM.
-**Check:** Are goroutines bounded? Is there a shutdown mechanism? Do goroutines have exit conditions?
+### Concurrency Leak (threads, goroutines, tasks, connections)
+**Pattern:** Concurrent workers created but never cleaned up. Memory grows over time until OOM.
+**Check:** Are workers bounded? Is there a shutdown mechanism? Does every worker have an exit condition?
 **Fix:** Use context cancellation, WaitGroups, or bounded worker pools.
 
 ### Lock Contention

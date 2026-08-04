@@ -6,7 +6,7 @@ mean-qa ledgers, monitors** — if so, record a short pointer (link/SHA) rather
 than pasting novels into STATE.md.
 
 Grades: **MEASURED** · **CONFIRMED** · **REPORTED** · **UNRESOLVED**
-(see [../WORKBENCH.md](../WORKBENCH.md)).
+(see [../WORKBENCH.md](../SKILL.md)).
 
 **Hygiene (hard rule):** aggregates, presence counts, type shapes, masked
 patterns only. No production payload values, no customer identifiers, no PII.

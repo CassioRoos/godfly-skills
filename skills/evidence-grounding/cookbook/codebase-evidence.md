@@ -100,7 +100,14 @@ consumer processes a record that doesn't exist in the database.
 
 ## Worked Example: A Go Service
 
-The same moves, applied to a typical Go codebase:
+One concrete instantiation. The three moves are the point, not the language --
+in another ecosystem they are the same: find the test that pins the behaviour
+(whatever that stack's test convention is), find where the entry point is
+registered (router, decorator, annotation, config), then follow the call path
+checking how failures are handled at each hop. Substitute the conventions and
+the procedure is unchanged.
+
+Applied to a typical Go codebase:
 
 1. **Find the test that pins the behavior:** glob for `*_test.go` in the same
    package, grep for the function/type name in those files, and look for

@@ -4,6 +4,11 @@ MeanQA evidence must be resumable, auditable, and sanitized.
 
 ## Artifact Plan
 
+Artifacts are addressed **by case ID** -- `cases/<TC-ID>/` -- so any finding,
+ledger row, or later re-run can demand the exact evidence for one case. The
+per-case retention table and the sanitise-on-write rule live in
+[test-cases.md](test-cases.md); this file covers run-level packaging.
+
 Before execution, identify where the repo expects run artifacts. If no convention exists, propose a run directory under a QA/artifacts area and ask before writing repo files.
 
 Capture:

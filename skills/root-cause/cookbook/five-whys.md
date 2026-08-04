@@ -77,7 +77,7 @@ Problem: Deployment failed
 │   │   └── Why? Env setup is manual — evidence: no IaC for test env in repo
 │   │       └── Root: no infrastructure-as-code for test environments
 │   └── Why? New test was flaky — evidence: passes 7/10 reruns
-│       └── Why? Test races on async write — evidence: test.go:141, no await
+│       └── Why? Test races on async write — evidence: the test at line 141 does not wait for the write
 │           └── Root: missing async-safety convention in test guidelines
 └── Why? Deploy script errored — evidence: deploy.log line 233
     └── Why? Script not updated for new service — evidence: git log, script last touched 4 months ago
