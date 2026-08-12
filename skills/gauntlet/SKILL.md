@@ -32,6 +32,27 @@ review and fatal in use.
    between rounds so position bias can't repeat.
 3. **The skill under test never sees the rubric.** Fixtures and ground truth
    live outside anything the tested arm reads.
+   **And the fixture must be SYNTHETIC — arms must not be able to read the real
+   subject system.** `codex exec --sandbox read-only` restricts writes, not reads;
+   `-C <dir>` sets cwd and jails nothing; `claude -p` with `bypassPermissions`
+   reads the whole machine. So a fixture naming a real repo, service, standard, or
+   ticket that exists on your disk is not a fixture: arms silently cross-check it
+   against reality, and the judge then scores TRUE findings as fabrications
+   because the rubric assumed they could not know. Observed in practice — a fake
+   PR describing a service that existed locally produced arms citing that
+   service's real source lines and its docs repo's real HEAD SHA, and a 33-count
+   "fabrication" score that was mostly correct reads. Invent service and symbol
+   names, and grep the candidate fixture for every distinctive token before using
+   it. Verify containment empirically before judging:
+
+   ```bash
+   grep -coE '/(real-repo-dir)/' <arm-output>   # must be 0
+   grep -coE '\b[0-9a-f]{40}\b' <arm-output>    # stray commit SHAs: must be 0
+   ```
+
+   Discard any arm that escaped. **Capabilities must also be matched across arms:**
+   one arm with network, `gh`, or MCP access and another sandboxed are not the same
+   experiment, and the fabrication axis becomes garbage.
 4. **Single runs give direction, not decimals.** Model output varies run to
    run; treat a 0.5 gap as noise, a 3-point gap as signal. Rerun ALL arms
    fresh when comparing versions — never compare a fresh run to a cached one.

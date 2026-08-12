@@ -31,7 +31,8 @@ Derive final wording from the resolved standard; these map to its sections.
 ## Analysis Quality Bar
 
 These are what separate a great handover from a compliant one. Coach toward them;
-in the matrix, report them as `quality:*` rows.
+report a `quality:*` row only where it changes a verdict or earns a place in the work
+list -- this is a coaching bar, not five more rows to fill.
 
 - `quality:evidence-per-claim` -- every claim is paired with a code link or runtime
   evidence. "The consumer drops UpdatedSince" plus the line link plus the log line

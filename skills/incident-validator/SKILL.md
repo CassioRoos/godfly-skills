@@ -11,7 +11,7 @@ description: >
   For adversarial review of the fix itself use godfly; for causal analysis use
   root-cause; for writing the postmortem use premortem-postmortem.
 metadata:
-  version: "1.1"
+  version: "1.2"
 ---
 
 # Incident Validator
@@ -60,7 +60,7 @@ If the user doesn't say which type, infer from the artifact and confirm in one
 line. One artifact can be validated as multiple types (a handover that will become
 a postmortem); run the rubric for the stage it's at now.
 
-## Two Modes, One Invariant
+## Three Modes, One Invariant
 
 **Coach mode** (artifact in progress -- the default): full gate matrix, then grouped
 questions to close the red gates, then re-validate as the author supplies evidence.
@@ -75,15 +75,25 @@ Enter gate mode when the user explicitly asks "can I close/merge/publish this?" 
 says so. Entering gate mode never predetermines the verdict: BLOCKED is a valid,
 expected, unembarrassing gate-mode outcome.
 
-**The invariant, in both modes: a failed gate is NEVER reported as a suggestion.**
+**Passenger mode** (nobody asked for a closure decision -- the user asked for an
+analysis, a root cause, or "what is going on here", and this skill loaded alongside
+others): no matrix. Emit the terminal line, the failing gates that drove it in
+consequence order (five maximum, prose or a short list), and the ordered work list.
+Passing gates are graded and summarised in one line, never enumerated. Close with
+"Full gate matrix on request." Someone who wanted a compliance audit would have asked
+the closure question; answering a diagnostic question with thirty rows of paperwork
+grading buries the diagnosis, which is the one thing they asked for.
+
+**The invariant, in all three modes: a failed gate is NEVER reported as a suggestion.**
 Coach mode changes what happens after the matrix -- questions instead of a verdict --
 never the matrix itself. "Consider adding impact analysis" is banned vocabulary.
 The gate is `impact-analysis: FAIL` and the next step is the question that closes it.
 
 **No author present?** (batch run, CI, validating someone else's artifact without
-them): skip the interview loop. Emit the full matrix and the grouped questions as
-the deliverable -- they become the work list for whoever owns the artifact. Never
-refuse to produce a matrix because nobody can answer questions.
+them): skip the interview loop; the ordered work list replaces it. Never refuse to
+produce a VERDICT because nobody can answer questions -- but no author is a reason to
+drop the questions, never a reason to grow the table. A reader who cannot answer
+questions has even less use for thirty rows than the author does.
 
 ## The Flow
 
@@ -139,7 +149,12 @@ refuse to produce a matrix because nobody can answer questions.
 
 ## Output Shape
 
-Always the matrix, always this shape:
+In coach and gate mode, always the complete matrix -- every gate in the rubric, every
+run, including the ones that passed three iterations ago. In passenger and no-author
+runs, never. Grading every gate and printing every gate are different acts: grade all
+of them always, print them per the mode.
+
+Coach and gate mode use this shape:
 
 ```markdown
 ## Validation: <artifact> (<type>, <mode> mode)
@@ -160,6 +175,39 @@ Classified: <P-level> | Postmortem triggers: <none fired | FIRED: <trigger>>
 BLOCKED on: <gates>   (or: CLOSEABLE)
 ```
 
+Passenger and no-author runs use this shape instead -- same vocabulary, same terminal
+grammar, no matrix:
+
+```markdown
+## <artifact>: <terminal line>
+
+<one paragraph: the incident in plain language -- what breaks, who is affected, since
+when. This is what the reader came for; it goes first.>
+
+**Blocking:** <the failing gates, consequence order, at most five, each one line:
+what is missing -- the fastest thing that closes it.>
+**Also open:** <remaining failed/unknown gates, names only, one line total.>
+**Passing:** <count> gates pass.
+
+### Do these first
+<numbered, consequence order, three maximum, each verb + target + done-condition.
+Production still being broken outranks every paperwork gate.>
+
+### Not on the critical path
+<the real-but-deferrable items, one line, so nobody mistakes deferral for oversight.>
+
+Full gate matrix on request.
+```
+
+**Register in passenger mode.** Gate slugs, mode names, and enum labels are this
+skill's internal vocabulary, not the reader's. In passenger mode the reader never sees
+`severity-classified`, `mitigation-vs-root-cause`, `trigger-sweep`, or the words
+"passenger mode". They see "nobody has assigned this a severity", "it is not
+established whether this is fixed or merely patched", "the postmortem triggers were
+never checked". Keep the terminal line's verdict word -- BLOCKED / CLOSEABLE is a
+decision, not jargon -- and name the gates in plain language after it. Coach and gate
+mode keep the slugs: those readers are working the matrix and need its vocabulary.
+
 ## Semantic Checks Are the Point
 
 Section-presence checking is worthless -- anyone can fill headers with fluff. The
@@ -179,12 +227,34 @@ gates that matter are semantic, and the rubrics spell them out. The recurring on
   symptom count. "Were 1,150 webhook deliveries lost or requeued?" is impact.
 - **"Unknown" written down beats silence.** Unknowns with a path to resolution
   pass; absent uncertainty fails.
+- **Never list a gate as open that the artifact satisfies.** "Also open" is a list of
+  graded failures, not a dumping ground for every gate you did not discuss. Before a
+  gate goes in it, confirm the artifact does not already answer it: a handover that
+  names every affected service satisfies `affected-services`, and one that checks the
+  same pattern across five integrations satisfies `recurrence-check`, however much
+  else it is missing. Crediting nothing is as wrong as crediting everything, and it
+  destroys the reader's trust in the gates that genuinely ARE failing.
+- **`unknown` means absent evidence, never merely unverified evidence.** A trigger the
+  artifact documents with specific counts, durations, or timestamps is TRUE at
+  `documented` strength. Reserve `unknown` for what the artifact does not speak to.
+  Downgrading documented facts to `unknown` because no tool was available to re-verify
+  them inflates the unknown count and hides which triggers have fired -- the strength
+  drops to `documented`, the verdict does not drop to `unknown`.
 - **Merged is not deployed.** Verify the running version before accepting
   post-deploy claims.
 - **Gates verdict the ARTIFACT, not the validator's knowledge.** If you run a
   check yourself (a recurrence grep, a Datadog query) and find the answer, the
   gate stays FAIL until the artifact contains it -- report your finding as
   evidence for the author to incorporate, never as a reason to flip the gate.
+
+**Cookbook files grade; they never dictate shape.** The rubrics define what passes,
+the ladder defines how strong the evidence is, `closure-gates` defines what closure
+requires. None of them decides what appears on the page -- that is this file's job, by
+mode, and it is the same decision for a handover, a PR, and a postmortem. If a
+cookbook line reads as an instruction to print something ("appears in the matrix",
+"never blocks producing the matrix"), read it as an instruction to GRADE something,
+and print per the mode. A rubric that could quietly reintroduce a thirty-row table is
+a bug in the rubric.
 
 ## What This Skill Is Not
 
