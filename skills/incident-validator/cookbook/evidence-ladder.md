@@ -2,7 +2,7 @@
 
 Every gate gets an evidence-strength rating alongside its verdict. The ladder makes
 the difference between "the PR body contains a Datadog link" and "the Datadog link
-actually shows the error rate dropping" visible in the matrix.
+actually shows the error rate dropping" visible in the gate report.
 
 ## The Four Rungs
 
@@ -29,10 +29,19 @@ with prose alone:
   eng lead approved it" with no link is `claimed` and FAILS the gate. The approval
   must be a linked artifact -- Slack message, Linear comment, PR review. The
   standard's own words: "If exceptions become normal, the standard is fake."
-- `recurrence-check`: "Checked every sibling integration -- not present" with no greppable
-  trail is `claimed`. When sibling repos are locally available, grep them yourself
-  and report what you find -- but remember the gate verdicts the ARTIFACT: your
-  finding is evidence for the author to incorporate, not a reason to flip the gate.
+- `recurrence-check` needs a sharper line, because over-failing it is the more common
+  error. A bare assertion -- "checked every sibling integration -- not present", no
+  counts, no signatures, no trail -- is `claimed` and cannot pass. But **per-service
+  RESULTS are `documented` and DO pass**: named services each carrying their own
+  signature, count, rate, or explicit negative finding is the check itself, reported.
+  "billing-sync: `token refresh failed`, exactly 65/hour; crm-sync: `failed to pull
+  customers`, 12/hour" is a completed cross-service check, not a claim about one. Do
+  not demand a grep trail from an artifact that already shows the per-service findings,
+  and do not downgrade it to `claimed` merely because you could not re-run it yourself
+  -- that confuses `documented` with `unverified`, which the `unknown` rule in SKILL.md
+  forbids. When sibling repos are locally available, grep them to ADD evidence -- but
+  the gate verdicts the ARTIFACT: your finding is evidence for the author to
+  incorporate, not a reason to flip the gate.
 
 Rung-to-verdict rule everywhere else: `documented` supports `pass` in coach mode
 without mandatory re-verification. Gate mode MUST attempt `verified-live` for
@@ -83,7 +92,8 @@ are locally available:
 
 Climb proportionally: grep and gh on every run; Linear on every run when available;
 Datadog when the artifact makes quantitative claims or in gate mode; Postgres only
-for data-integrity claims. Cite every live verification in the matrix (query,
+for data-integrity claims. Cite every live verification next to the gate it closes,
+wherever those gates are being reported (query,
 command, or ticket ID) so the next reader can re-run it.
 
 ## Unknowns Must Name Their Price
