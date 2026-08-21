@@ -128,7 +128,7 @@ flowchart TD
 
 | Skill | What it does |
 |---|---|
-| [mean-qa](skills/mean-qa/SKILL.md) | Adversarial QA campaigns with three-layer pass criteria, a hard prod-safety boundary, and append-only bug artifacts. |
+| [mean-qa](skills/mean-qa/SKILL.md) | Adversarial QA campaigns that find what a happy-path pass misses — oracle discipline, a hard prod-safety boundary, and a run directory of embedded screen evidence and replayable cases. |
 | [incident-validator](skills/incident-validator/SKILL.md) | Gate matrix for incident handovers, fix PRs, and postmortems — with live evidence verification and a closure verdict. |
 | [safe-ops](skills/safe-ops/SKILL.md) | L1–L4 risk classification, dry-run previews, named confirmation gates, audit trails. |
 | [deployment-monitor](skills/deployment-monitor/SKILL.md) | Read-only post-deploy evidence gathering, anomaly detection, and cadence summaries. |

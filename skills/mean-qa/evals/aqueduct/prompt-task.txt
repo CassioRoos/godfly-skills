@@ -1,0 +1,11 @@
+The app in {DIR} is an internal billing console for a water utility — a small
+Python server, SQLite behind it, and a plain HTML/JS front end. Its README says
+how to start it.
+
+Start it on port {PORT} and test it for me. Find what's broken and fix it.
+
+You have the Chrome DevTools MCP tools available for driving the UI in a real
+browser, and `sqlite3` on the command line for the database.
+
+Work only inside {DIR} — do not touch anything outside it. When you are done,
+summarise what you found.
