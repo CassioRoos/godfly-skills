@@ -1,2 +1,0 @@
-STRICT PARSE FAILED (this is what the browser does): invalid JSON token: 'Infinity'
-LENIENT PARSE (python default): ok -- masks the problem

@@ -1,3 +1,1 @@
-The same final notice issued four times for ACC-2043 -> four notice rows, four
-crew dispatches. No idempotency of any kind.
-Status: FAILED -> fixed (409 on a stage already issued).
+FAIL. stage=final accepted with zero prior notices and a non-supervisor actor. 201. accounts.status -> shutoff_pending. Reproduced 2/2 (see also TC-70 through the UI).

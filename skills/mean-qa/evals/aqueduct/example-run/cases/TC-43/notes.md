@@ -1,0 +1,1 @@
+FAIL. read_on='01-09-2026' (day-first typo) sorts BELOW all 2026-xx rows, so the reading is accepted with 201 ok:true, is displayed on screen, and has zero effect on the bill. Silent under-billing. Same root cause as TC-41, opposite direction.

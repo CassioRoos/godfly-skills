@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-5520",
+    "rate_per_m3": 2.05,
+    "standing_fee": 11.5,
+    "consumption_m3": 47.0,
+    "charges": 107.85,
+    "adjustments": 0,
+    "credits": -5000.0,
+    "balance_due": 5107.85
+  }
+}
+HTTP 201 in 0.003106s

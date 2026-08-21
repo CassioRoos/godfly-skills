@@ -1,0 +1,1 @@
+FAIL. One overflow credit note on ACC-5520 blanks the accounts list for ALL six accounts. See 10-accounts-list-dead-after-overflow.png. /api/accounts HTTP 200 but unparseable; ACC-5520 detail also unreachable; unaffected detail pages still parse.

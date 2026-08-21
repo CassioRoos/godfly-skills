@@ -42,6 +42,7 @@ h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em;
 
 table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   background: #fff;
   border: 1px solid var(--line);
@@ -86,7 +87,8 @@ button.danger { background: var(--due); border-color: var(--due); }
          z-index: 1000; }
 .modal[hidden] { display: none; }
 .modal-card { background: #fff; border-radius: 8px; padding: 22px 24px;
-              width: 380px; box-shadow: 0 18px 50px rgba(0,0,0,0.28); }
+              width: 380px; min-width: 380px;
+              box-shadow: 0 18px 50px rgba(0,0,0,0.28); }
 .modal-card h3 { margin-top: 0; }
 .modal-card label { display: flex; flex-direction: column; gap: 4px;
                     font-size: 12px; color: var(--muted); margin-bottom: 12px; }

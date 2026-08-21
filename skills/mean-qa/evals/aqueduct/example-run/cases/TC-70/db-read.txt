@@ -1,0 +1,6 @@
+### PRE-CLICK state of ACC-1188
+ACC-1188|active
+0
+### POST-CLICK state of ACC-1188 (one click, no confirmation dialog)
+ACC-1188|shutoff_pending
+1|ACC-1188|console|final|2026-08-21T16:57:36Z

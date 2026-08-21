@@ -1,1362 +1,1414 @@
-> Published copy of a real run against `evals/aqueduct/`. Absolute paths in
-> tracebacks and logs were rewritten to `/srv/aqueduct` for publication; no
-> other content was altered. The defect this run did **not** find is listed in
+> Published copy of a real run against `evals/aqueduct/`. Absolute paths were
+> rewritten for publication; no other content was altered. The rubric is in
 > `../GROUND-TRUTH.md`.
 
 # Aqueduct billing console — QA report
 
-Aqueduct is the console revenue clerks use to look at a water account, add a meter reading, correct a bill, and start the disconnection process. A clerk opens an account, sees what the customer consumed and what they owe, and can apply an adjustment, issue a credit note, or issue a disconnection notice. Working means three things: the balance on the screen is the balance the utility can invoice, the three clerk actions do exactly what they say and nothing else, and the disconnection process — which ends in a crew physically cutting off a household's water — follows the order the policy sets out.
+Aqueduct is the internal console the revenue clerks use to look at a water account, record a meter reading, correct a bill with an adjustment or a credit note, and start the three-step disconnection process. It is a ~260-line Python `http.server` over SQLite with a plain HTML/JS front end, used on office desktops and on phones in the field. "Working" for this system means four things: the balance it displays is the balance the customer owes; a disconnection cannot reach the crew-dispatch stage except by the documented route; money written to the ledger is the money the clerk intended, once; and a clerk on a phone can see and do the same things a clerk at a desk can.
 
-Two of those three were broken, and the third had no enforcement at all. The findings below are ranked by what they cost if real. All were reproduced from a clean seed, fixed, and re-verified; the fixes are in `server.py`, `static/app.js`, `static/index.html` and `static/style.css`, with the README's API contract updated to match.
+**Verdict:** HOLD — an INDUSTRIAL account with 4,313 m³ of recorded consumption bills $0.00 and is displayed to the clerk as "paid in full", and any caller can dispatch a disconnection crew with one unvalidated request.
 
-**Verdict:** all findings fixed and re-verified — but the supervisor half of the disconnection policy is only half-enforceable without a login, and that gap is still open. See [Residual risk](#residual-risk).
-
-**Environment:** local, `http://localhost:8413`, SQLite fixture rebuilt by `seed.py` between phases. Classified local: loopback bind, throwaway fixture DB, `seed.py` drops and recreates everything. Safe to mutate.
-**Build under test:** no git in the tree, so identified by checksum (sha256, first 8).
-Before — `server.py` `414560f6`, `app.js` `2b17164a`, `index.html` `8c3cc136`, `style.css` unmodified.
-After — `server.py` `b2fbed42` (`da9e382f` for the first fix pass, amended by [TC-31](#tc-31)), `app.js` `0cfc999a`, `index.html` `2c6681d0`, `style.css` `d8f2246b`, `README.md` `8969b6a0`.
-`seed.py` is deliberately unchanged at `1e7d72c3` — the fixture's missing INDUSTRIAL tariff is the test condition, not a data error.
-Python 3.14.4. The browser run confirmed the fixed bundle was live before any after-capture, via a cache-ignoring reload plus a marker check (`typeof cell === 'function'`, absent from the original `app.js`).
-**Run:** 2026-08-21, 10:24–13:45 · 34 cases executed, 24 failed on the original build, 3 passed on both builds, 1 documented gap tested as designed · fixtures `ACC-1188`, `ACC-2043`, `ACC-4471`, `ACC-5520`, `ACC-7310`, `ACC-9002`, `GHOST-1` (nonexistent, used deliberately)
+**Environment:** local · `http://localhost:8414` · SQLite fixture `aqueduct.db`, rebuilt from `seed.py` between phases. Classified local-safe: the database is dropped and recreated by `seed.py`, the tree is an ephemeral scratchpad copy, and the server binds `127.0.0.1`. Mutation was therefore in scope.
+**Build under test:** `server.py` sha256 `414560f6…`, `static/app.js` sha256 `2b17164a…` (full list in `build-marker.txt`), Python 3.14.4, started as `python3 server.py 8414`.
+**Run:** 2026-08-21, 16:49–17:05Z · 32 cases executed, 27 failed, 3 passed, 2 recorded as observed-not-defect · fixtures `ACC-1188`, `ACC-2043`, `ACC-4471`, `ACC-5520`, `ACC-7310`, `ACC-9002`
 
 This report has not been independently reviewed.
 
 ## Worst first
 
-1. **An industrial customer who consumed 4,313 m³ was billed $0.00 and shown as "paid in full".** Any account whose service class is missing from the `tariffs` table bills at zero and reports as settled. The README says that table is refreshed weekly from the Revenue team's export, so any class can be absent at any time — including DOMESTIC, which would silently zero every household bill. [TC-01](#tc-01), [TC-26](#tc-26)
-2. **A temp intern dispatched a disconnection crew with no prior notices.** None of the disconnection policy was enforced: not the stage order, not the supervisor requirement, not stage validity, not duplicates, not whether the account exists. Omitting `stage` defaulted to `final` — the irreversible value was what you got by saying nothing. [TC-06](#tc-06), [TC-07](#tc-07)
-3. **One mistyped adjustment took the whole console offline for every user.** An amount of `1e400` became `inf`, and the API then emitted the bare token `Infinity`, which is not valid JSON. All six accounts vanished from the list screen with no error shown, and there was no way to fix it from the console. [TC-04a](#tc-04a)
-4. **A credit note of -$500 raised a customer's balance by $500, permanently.** Credit notes are irreversible by the handler's own docstring, and the balance formula subtracts them — so a slipped minus sign is a permanent phantom debt entered through the one door with no undo. [TC-03](#tc-03)
-5. **A payload typed into the Reason field ran in every clerk's browser.** Both the seeded holder name and any clerk-supplied reason were interpolated into `innerHTML`. [TC-23](#tc-23), [TC-24](#tc-24)
-6. **Every malformed request returned a 500 carrying a full traceback**, including absolute source paths and the Python install location — while the read side of the same codebase returned clean 404s. [TC-12](#tc-12)
-7. **All four write endpoints accepted a nonexistent account**, returning `201 {"ok": true}` and writing orphan money rows. The shutoff endpoint announced a crew dispatch for an account that does not exist. [TC-11](#tc-11), [TC-16](#tc-16)
+1. **A large industrial customer is billed nothing, and the screen says "paid in full".** `ACC-4471` has three clean meter readings totalling 4,313 m³ and a balance of $0.00 shown in green. The `tariffs` table has no `INDUSTRIAL` row, and the lookup that misses returns `0.0, 0.0` instead of failing. Every account in a service class that is missing from the Revenue team's weekly export bills zero, silently, with nothing on any screen to indicate it. [Case 1](#c1)
+2. **One request dispatches a disconnection crew, with no supervisor and no prior notices.** `POST /api/shutoff` writes whatever `stage` it is given, defaults that field to `final` when it is omitted, and never checks that the `reminder` and `warning` notices exist. The console's own button sends `stage:"final"` on a single click with no confirmation. The README says this step is irreversible. [Case 5](#c5), [Case 12](#c12)
+3. **One bad credit note blanks the accounts list for every clerk, permanently.** An amount of `1e400` becomes a float infinity, is stored, and makes `/api/accounts` emit bare `Infinity` — which is not valid JSON. Every clerk's home screen renders zero rows. There is no console path to void a credit note. [Case 10](#c10)
+4. **A credit note with a negative amount charges the customer.** `-5000` raised `ACC-5520` from $107.85 to $5,107.85, filed as a credit, irreversible. [Case 9](#c9)
+5. **Any text a clerk types into a `reason` field runs as script in every other clerk's browser.** [Case 15](#c15)
+6. **A clerk on a phone cannot see the balance due and cannot finish a credit note.** [Case 18](#c18), [Case 19](#c19)
 
 ## How this was tested
 
-I read the code first, because the highest-yield question here is what each dependency returns when it cannot answer. `lookup_tariff` stood out immediately: a lookup with no error return, documented as "a class can be missing between exports", returning `0.0, 0.0` on a miss. That is a rate of zero and a rate we do not know sharing one value. The fixture confirmed the setup was deliberate — `seed.py` omits INDUSTRIAL with a comment pointing at the README — so the first request I issued was the accounts list, and ACC-4471 came back owing nothing on 4,313 m³.
+I read `server.py`, `seed.py` and the front end first, then worked the dependency question before anything else: for each thing the billing path consults, what does it return when it cannot answer, and what does the code do with that value. `lookup_tariff` answered that immediately — it is documented as having no error return, and the seed data deliberately omits the `INDUSTRIAL` class. That produced the first and worst finding, and I proved it in both directions by inserting a tariff row and watching the same account bill $13,465.30.
 
-From there I worked by blast radius rather than convenience. Phase one was money: the tariff collapse, the sign of a credit note, and what the amount field accepts. Phase two was the irreversible path, because the README specifies the disconnection policy precisely enough to be a real oracle — three stages in order, supervisor for the last, crew dispatched and not recallable. Every clause of it turned out to be documentation only. Phase three was the cheap probes across every input-accepting endpoint: malformed bytes, wrong types, missing and extra fields, boundaries, repeats, concurrency, and the unhappy identities. Phase four drove the UI in Chrome through the DevTools MCP, which is where the money bug turns into a green "paid in full" and the stored payloads actually execute.
+From there the campaign went in blast-radius order: the disconnection path (irreversible, dispatches people), then the money-writing endpoints, then the read side, then the browser. Against every input-accepting endpoint I ran the full cheap-probe list — malformed bytes, wrong types, missing and extra fields, boundaries, the same request twice and ten at once, and requests naming accounts that do not exist. I read every result back out of SQLite directly rather than trusting the API's echo.
 
-Two things changed course mid-run. The `1e400` probe was meant to be a boundary check on one account; when the response came back containing a bare `Infinity` I followed it to the list endpoint and found the poisoning was console-wide, which moved it from a curiosity to the third-worst finding. And after fixing it, injecting a poisoned row directly into the database showed the detail page still 500ing on exactly the account a clerk would need to open to correct it — so the first fix was incomplete and got a second pass ([TC-31](#tc-31)).
+The browser phase was driven through the Chrome DevTools MCP at 1440×900 and again at phone width. I drove each screen's non-happy states as well as its happy ones — the account with no readings, the account with a missing tariff, the modal's own client-side rejection branch — because that is where the front-end defects turned out to live. Two of them are invisible to a DOM assertion and only show up in a rendered capture or a stacking check, which is how the buried toast was found.
 
-One documented behaviour I deliberately did **not** file. The README states negative consumption is intentional — a swapped meter restarts at zero, and Billing signed off in June 2026 that the negative period is carried rather than clamped so the customer is not charged twice. I tested that as designed instead: it holds, and it still holds after my changes ([TC-02](#tc-02)). This matters for TC-17 below, where a genuinely unvalidated date field produces negative consumption for an entirely different reason, and where the fix had to close the hole without clamping the sanctioned case.
+Mid-run I changed course twice. The `NaN` probe was rejected by SQLite's `NOT NULL` constraint rather than by the application, which sent me looking for a non-finite value that *would* store — `1e400` — and that turned a wrong-error-contract finding into the third-worst defect in the report. And the day-first date probe produced the opposite harm from the one I predicted: I expected over-billing and got silent under-billing, because the lexical sort puts `01-09-2026` below `2026-08-01` instead of above it.
+
+The README records three signed-off decisions and one policy note. I tested the negative-consumption sign-off *as designed* rather than filing it — it holds, and it is not in the defect list. The unwritten `audit_log`, the unbuilt Reports screen, and the absence of login are documented gaps and are treated as such throughout.
 
 ---
 
-## Flow 1 — the balance a clerk reads off the screen
+## Flow 1 — Billing: what the console says an account owes
 
-This is the flow everything else depends on: consumption comes from the last two meter readings, the rate comes from the `tariffs` table keyed on the account's service class, and the README gives the formula as `standing_fee + (rate_per_m3 × consumption) + adjustments − credits`. Working means the number shown is a number the utility can invoice.
+The balance is `standing_fee + rate_per_m3 × consumption + adjustments − credits`, where consumption is the latest reading minus the previous one and the rates come from a `tariffs` table refreshed weekly by another team. Working here means the displayed balance matches what the rules produce from the stored data, and that the console can tell the difference between "this account owes nothing" and "I could not price this account".
 
 | # | Case | Expected | Result | Time | Evidence |
 |---|------|----------|--------|------|----------|
-| 1 | [Account whose service class has no tariff row](#tc-01) | refuse to produce a balance | ❌ billed $0.00, reported settled | 0.002s | [cases/TC-01](cases/TC-01) |
-| 2 | [Meter swap carries a negative period (signed off)](#tc-02) | negative carried, not clamped | ✅ | 0.001s | [cases/TC-02](cases/TC-02) |
-| 3 | [Accounts with a tariff on file](#tc-01) | formula holds | ✅ | 0.002s | [cases/TC-01](cases/TC-01) |
-| 4 | [Account with fewer than two readings](#tc-25) | no consumption, standing fee only | ✅ server-side | 0.001s | [cases/TC-25](cases/TC-25) |
+| 1 | INDUSTRIAL account with no tariff row | refuse to price, or flag | ❌ bills $0.00, shown "paid in full" | 0.004s | [details](#c1) · `cases/TC-01` |
+| 2 | Same account with a tariff row inserted | prices normally | ✅ $13,465.30 | 0.001s | [details](#c2) · `cases/TC-02` |
+| 3 | Reading dated `tomorrow-ish` | 400, reject the date | ❌ 201, becomes "latest", reprices $26.01 → $118.31 | 0.002s | [details](#c3) · `cases/TC-41` |
+| 4 | Reading dated `01-09-2026` (day-first typo) | 400, or bill the 11.5 m³ | ❌ 201 "ok", stored, displayed, **billed as zero** | 0.001s | [details](#c4) · `cases/TC-43` |
+| 5 | Account with no readings at all | an empty state | ❌ "null m3" and an `undefined` row | — | [details](#c14) · `cases/TC-75` |
+| 6 | Meter swap producing a negative period | carried, not clamped (signed off) | ✅ −1289.5 m³ carried | 0.001s | [details](#c20) · `cases/TC-90` |
 
-The three accounts whose class *is* on file bill exactly to the formula — ACC-5520 at COMMERCIAL is `11.50 + 2.05 × 47 = 107.85`, which is what the API returned. That is what makes the fourth account's zero a defect rather than a policy: same code path, same formula, and the only difference is a missing lookup row.
+The tariff defect and the date defects share a shape worth naming: in both, the system had a way to know it was in trouble and threw that information away. `lookup_tariff` turns "no such class" into a $0.00 price; the readings table turns "that is not a date" into a sort key. Neither surfaces anywhere a clerk can see.
 
-### <a id="tc-01"></a>TC-01 — a missing tariff row bills the account at zero and calls it settled `[S1]`
+### <a id="c1"></a>Case 1 — an industrial customer with 4,313 m³ owes nothing
 
-**Attacks:** every account has a billable rate · **Oracle:** the README formula, plus the four sibling accounts whose classes are on file and bill correctly
-**Fixture:** `ACC-4471` (Nordheim Textiles, INDUSTRIAL, 4,313 m³ consumed across three readings)
+**What should happen.** `ACC-4471` is `INDUSTRIAL` and has three consecutive meter readings — 40,210 → 44,988 → 49,301 m³. The console should either price it or refuse to price it. It must not present an unpriced account as a settled one.
 
-**What should happen.** The account's service class has no row in `tariffs`. The system does not know what to charge, so it must refuse to produce a balance and say why. "I could not look up the rate" and "this account owes nothing" are different facts and must not share a value.
-
-**What happened.** It returned `rate_per_m3: 0.0`, `standing_fee: 0.0`, `charges: 0.0`, `balance_due: 0.0` — and the list screen rendered that as `$0.00 — paid in full` in green.
-
-<details><summary>request / response (before)</summary>
+**What happened.** `rate_per_m3: 0.0`, `standing_fee: 0.0`, `balance_due: 0.0`, rendered in the accounts table in green as "$0.00 — paid in full".
 
 ```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' http://localhost:8413/api/accounts/ACC-4471
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' \
+  http://127.0.0.1:8414/api/accounts/ACC-4471
 ```
 ```json
 {
-  "account_id": "ACC-4471",
-  "rate_per_m3": 0.0,
-  "standing_fee": 0.0,
-  "consumption_m3": 4313.0,
-  "charges": 0.0,
-  "adjustments": 0,
-  "credits": 0,
-  "balance_due": 0.0
+  "account": { "id": "ACC-4471", "holder_name": "Nordheim Textiles",
+               "service_class": "INDUSTRIAL", "status": "active" },
+  "readings": [
+    { "id": 10, "read_on": "2026-08-01", "meter_m3": 49301.0, "source": "field" },
+    { "id": 9,  "read_on": "2026-07-01", "meter_m3": 44988.0, "source": "field" },
+    { "id": 8,  "read_on": "2026-06-01", "meter_m3": 40210.0, "source": "field" }
+  ],
+  "adjustments": [], "credit_notes": [], "shutoff_notices": [],
+  "billing": {
+    "account_id": "ACC-4471",
+    "rate_per_m3": 0.0,
+    "standing_fee": 0.0,
+    "consumption_m3": 4313.0,
+    "charges": 0.0,
+    "adjustments": 0,
+    "credits": 0,
+    "balance_due": 0.0
+  }
 }
 ```
 ```
-HTTP 200 in 0.002470s
+HTTP 200 in 0.004423s
 ```
-</details>
 
-**Direct read** — the API's echo is not proof of the cause, so confirming the tariff row is genuinely absent and the consumption genuinely real:
+**Direct read** — the readings are real and the tariff row genuinely is not there:
 
 ```
-$ sqlite3 aqueduct.db "SELECT service_class, rate_per_m3, standing_fee FROM tariffs;"
-DOMESTIC|1.42|4.0
-COMMERCIAL|2.05|11.5
-
-$ sqlite3 aqueduct.db "SELECT count(*) FROM tariffs WHERE service_class='INDUSTRIAL';"
-0
-
-$ sqlite3 aqueduct.db "SELECT read_on, meter_m3 FROM readings WHERE account_id='ACC-4471' ORDER BY read_on;"
+$ sqlite3 aqueduct.db "SELECT read_on,meter_m3 FROM readings WHERE account_id='ACC-4471' ORDER BY read_on;"
 2026-06-01|40210.0
 2026-07-01|44988.0
 2026-08-01|49301.0
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM tariffs WHERE service_class='INDUSTRIAL';"
+0
 ```
 
-Recomputing every account from the raw tables, the missing rate is the only anomaly:
+**Why it happens.** `server.py:28-39`:
 
-```
-$ sqlite3 aqueduct.db "SELECT a.id, a.service_class, <latest - previous> AS used, t.rate_per_m3, t.standing_fee
-                       FROM accounts a LEFT JOIN tariffs t ON t.service_class = a.service_class ORDER BY a.id;"
-ACC-1188|DOMESTIC|33.5|1.42|4.0
-ACC-2043|DOMESTIC|15.5|1.42|4.0
-ACC-4471|INDUSTRIAL|4313.0||        <- no rate, no fee
-ACC-5520|COMMERCIAL|47.0|2.05|11.5
-ACC-7310|DOMESTIC||1.42|4.0
-ACC-9002|COMMERCIAL|48.0|2.05|11.5
+```python
+def lookup_tariff(conn, service_class):
+    row = conn.execute(
+        "SELECT rate_per_m3, standing_fee FROM tariffs WHERE service_class = ?",
+        (service_class,)).fetchone()
+    if not row:
+        return 0.0, 0.0
 ```
 
-**Why it happens.** `lookup_tariff` is a lookup with no error return — its own docstring said so — and returned `0.0, 0.0` when the class was absent. `balance()` then multiplied consumption by a rate of zero and added a standing fee of zero, producing a real-looking total. Nothing downstream could distinguish that from an account that genuinely owes nothing, so the UI's `balance_due <= 0` branch labelled it paid in full.
+The docstring states the case plainly — "a class can be missing between exports. This helper has no error return." Because it cannot fail, it returns the zero value, and `balance()` at line 66 multiplies by it without ever asking whether a rate was found. "I could not price this" and "this costs nothing" are the same value, so the caller cannot distinguish them, and nothing downstream tries.
 
-**What it costs.** Direct revenue loss, silent, with no error and no metric. At the COMMERCIAL rate this one account's 4,313 m³ is roughly $8,850 for the month. The wider exposure is worse than the one account: the README describes `tariffs` as refreshed weekly from the Revenue team's export, so any class can be missing after any export. If DOMESTIC ever drops out, every household bill silently becomes $0.00 and the console reports all of them as paid.
+**What it costs.** Nordheim Textiles is the largest consumer in the fixture and is invoiced nothing. The trigger is a routine operational event the code documents as expected: a service class missing from the Revenue team's weekly export. The failure is per-class and total, so the day the export drops `COMMERCIAL`, every commercial account in the city bills zero at once — with no error, no log line, and a green "paid in full" on the clerk's screen actively discouraging investigation. This is unrecoverable revenue unless someone notices out-of-band.
 
-**The fix.** `lookup_tariff` returns `None` when the class is absent, forcing every caller to handle it. `balance()` now always carries a `billing_status` of `ok` or `blocked`; blocked sets `balance_due` to `null` and puts the reason in `billing_error`. The UI shows "cannot bill" and the reason, never a currency amount.
+**Fails if:** an account with consumption and no tariff row returns a `balance_due` at all, instead of an error or an explicit unpriced marker. **Reproduced:** 2/2 from clean state.
 
-<details><summary>request / response (after)</summary>
+### <a id="c2"></a>Case 2 — positive control: the same account with a tariff row
+
+This exists so Case 1 is not a probe that passes regardless. I inserted an `INDUSTRIAL` tariff, re-read the same URL, and removed it again.
+
+<details><summary>request / response</summary>
 
 ```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' http://localhost:8413/api/accounts/ACC-4471
+sqlite3 aqueduct.db "INSERT INTO tariffs VALUES ('INDUSTRIAL', 3.10, 95.00);"
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' \
+  http://127.0.0.1:8414/api/accounts/ACC-4471
+sqlite3 aqueduct.db "DELETE FROM tariffs WHERE service_class='INDUSTRIAL';"
 ```
 ```json
 {
-  "account_id": "ACC-4471",
-  "rate_per_m3": null,
-  "standing_fee": null,
-  "consumption_m3": 4313.0,
-  "charges": null,
-  "adjustments": 0,
-  "credits": 0,
-  "balance_due": null,
-  "billing_status": "blocked",
-  "billing_error": "no tariff on file for service class INDUSTRIAL -- this account cannot be billed until the Revenue export supplies one"
-}
-```
-</details>
-
-**Fails if:** an account whose service class is absent from `tariffs` returns any numeric `balance_due`, or renders as paid. **Reproduced:** 2/2 from clean seed. **Graduates to:** a unit test over `balance()` with a fixture account whose class is not in `tariffs`, asserting `billing_status == "blocked"` and `balance_due is None`.
-
-### <a id="tc-02"></a>TC-02 — the signed-off meter-swap behaviour, tested as designed `[not a defect]`
-
-**Attacks:** nothing — this verifies a documented decision still holds · **Oracle:** the README's "Billing rules" section and the `consumption()` docstring
-
-The README says plainly that negative consumption is intentional, that a swapped meter starts from zero, that Billing signed this off in June 2026, and asks that it not be "fixed". So the question is not whether it is right; it is whether the stated bound actually holds, and whether my changes broke it.
-
-<details><summary>request / response (after the fixes)</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
-  -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-1188","meter_m3":0,"read_on":"2026-08-15","source":"meter swap"}' \
-  http://localhost:8413/api/readings
-```
-```json
-{
-  "ok": true,
   "billing": {
-    "account_id": "ACC-1188",
-    "rate_per_m3": 1.42,
-    "standing_fee": 4.0,
-    "consumption_m3": -1301.5,
-    "charges": -1844.13,
+    "account_id": "ACC-4471",
+    "rate_per_m3": 3.1,
+    "standing_fee": 95.0,
+    "consumption_m3": 4313.0,
+    "charges": 13465.3,
     "adjustments": 0,
     "credits": 0,
-    "balance_due": -1844.13,
-    "billing_status": "ok",
-    "billing_error": null
+    "balance_due": 13465.3
   }
 }
 ```
 ```
-HTTP 201
+HTTP 200 in 0.001380s
 ```
 </details>
 
-The negative period is carried, not clamped, on both builds. **Not filed as a defect.** It does, however, constrain the TC-17 fix: validating the date field had to close that hole without touching this one.
+$13,465.30 with the row, $0.00 without it, same readings. The observation changes when the defect is absent, which is what makes Case 1 evidence rather than an assertion.
 
----
+### <a id="c3"></a>Case 3 and <a id="c4"></a>Case 4 — an unvalidated date field silently reprices the account, in both directions
 
-## Flow 2 — the disconnection process
+**What should happen.** `read_on` decides which two readings are "latest" and "previous", so it decides the bill. A value that is not a date should be rejected.
 
-The README specifies this precisely, which makes it the strongest oracle in the codebase: three stages issued strictly in order (`reminder`, then `warning`, then `final`), a `final` notice is what actually sends a crew, it may only be issued by a supervisor and only once the two earlier notices exist, and once a crew is dispatched it is not reversible from the console. Working means the code enforces what that paragraph says.
+**What happened.** Both were accepted with `201 {"ok": true}`. The column is `TEXT` and the ordering is `ORDER BY read_on DESC, id DESC` — a lexical string sort — so the harm depends on where the bad string happens to sort.
 
-None of it was enforced. Every row below failed on the original build.
-
-| # | Case | Expected | Result | Time | Evidence |
-|---|------|----------|--------|------|----------|
-| 1 | [`final` with no prior notices, from an intern](#tc-06) | 4xx refusal | ❌ 201, crew dispatched | 0.004s | [cases/TC-06](cases/TC-06) |
-| 2 | [`stage` omitted entirely](#tc-07) | 4xx, never default | ❌ 201, defaulted to `final` | 0.003s | [cases/TC-07](cases/TC-07) |
-| 3 | [`stage` set to `BANANA`](#tc-09) | 4xx | ❌ 201, stored verbatim | 0.001s | [cases/TC-09](cases/TC-09) |
-| 4 | [same `final` notice four times](#tc-10) | one effect | ❌ 4 notices, 4 dispatches | 0.001s | [cases/TC-10](cases/TC-10) |
-| 5 | [`final` on a nonexistent account](#tc-11) | 404 | ❌ 201 `{"ok": true}` | 0.001s | [cases/TC-11](cases/TC-11) |
-| 6 | [one click in the UI, no confirmation](#tc-28) | confirm an irreversible act | ❌ fired immediately | — | [cases/TC-28](cases/TC-28) |
-| 7 | [live shutoff button on an unknown account](#tc-30) | no actions offered | ❌ panel rendered and clickable | — | [cases/TC-30](cases/TC-30) |
-
-### <a id="tc-06"></a>TC-06 — a final disconnection notice can be issued by anyone, on any account, with no prior notices `[S1]`
-
-**Attacks:** an irreversible act happens only under its documented preconditions · **Oracle:** the README "Disconnection policy" paragraph, quoted verbatim
-**Fixture:** `ACC-2043` (active, zero notices on file)
-
-**What should happen.** A `final` notice sends a crew. The account has no `reminder` and no `warning`, and the actor is a plain clerk. Both documented preconditions fail, so the request must be refused.
-
-**What happened.** `201`, the notice was written, and the account moved to `shutoff_pending`.
-
-<details><summary>request / response (before)</summary>
+<details><summary>Case 3 — <code>tomorrow-ish</code> sorts <em>above</em> real dates → over-billing</summary>
 
 ```bash
 curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-2043","actor":"temp-intern","stage":"final"}' \
-  http://localhost:8413/api/shutoff
+  -d '{"account_id":"ACC-2043","meter_m3":200,"read_on":"tomorrow-ish"}' \
+  http://127.0.0.1:8414/api/readings
 ```
 ```json
-{ "ok": true, "account_id": "ACC-2043", "actor": "temp-intern" }
+{ "ok": true,
+  "billing": { "account_id": "ACC-2043", "consumption_m3": 80.5,
+               "charges": 118.31, "balance_due": 118.31 } }
 ```
 ```
-HTTP 201 in 0.003700s
+HTTP 201 in 0.001610s
 ```
+```
+$ sqlite3 aqueduct.db "SELECT id,read_on,meter_m3 FROM readings WHERE account_id='ACC-2043' ORDER BY read_on DESC, id DESC;"
+16|tomorrow-ish|200.0     <- sorts first, so it is the "latest" reading
+7|2026-08-01|119.5
+6|2026-07-01|104.0
+5|2026-06-01|88.0
+```
+Balance went from $26.01 to $118.31 on a typo.
 </details>
 
-**Direct read** — pre-state was `active` with zero notices:
+<details><summary>Case 4 — <code>01-09-2026</code> sorts <em>below</em> real dates → silent under-billing</summary>
+
+A clerk in the field enters the 1 September reading day-first. Meter 131.0, an ordinary +11.5 m³ month.
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-2043","meter_m3":131.0,"read_on":"01-09-2026"}' \
+  http://127.0.0.1:8414/api/readings
+```
+```json
+{ "ok": true,
+  "billing": { "account_id": "ACC-2043", "consumption_m3": 15.5,
+               "charges": 26.01, "balance_due": 26.01 } }
+```
+```
+HTTP 201 in 0.001222s
+```
+```
+$ sqlite3 aqueduct.db "SELECT id,read_on,meter_m3 FROM readings WHERE account_id='ACC-2043' ORDER BY read_on DESC, id DESC;"
+7|2026-08-01|119.5
+6|2026-07-01|104.0
+5|2026-06-01|88.0
+18|01-09-2026|131.0      <- '0' < '2', so the newest reading sorts last
+```
+The balance did not move. The reading was accepted, is stored, and is displayed on the account's readings table — and contributes nothing. The customer's 11.5 m³ is never billed.
+</details>
+
+**Why it happens.** `api_add_reading` (`server.py:126-135`) takes `body.get("read_on")` and inserts it with no parsing or format check, into a `TEXT` column. `consumption()` orders by that column as a string. There is no constraint, no `date()` call, and no validation anywhere in the path.
+
+**What it costs.** Case 4 is the more dangerous of the two because it is silent in the direction of lost revenue and the clerk gets a success toast and a visible row. Case 3 is loud in the direction of over-charging a customer. Both are reachable by one mistyped field on a phone keyboard, which is exactly where date typos happen.
+
+**Fails if:** a `read_on` that is not an ISO date is accepted. **Reproduced:** 2/2 each.
+
+---
+
+## Flow 2 — Disconnection: the part that sends people to someone's house
+
+The README is unambiguous: `reminder`, then `warning`, then `final`; `final` "is what actually sends a crew, so it may only be issued by a supervisor and only after the two earlier notices exist for that account"; and "once a crew is dispatched the disconnection is not reversible from the console." Working here means the ordering rule is enforced somewhere in the system.
+
+| # | Case | Expected | Result | Time | Evidence |
+|---|------|----------|--------|------|----------|
+| 5 | `final` with no prior notices | 4xx, no row | ❌ 201, row written, account → `shutoff_pending` | 0.003s | [details](#c5) · `cases/TC-10` |
+| 6 | `stage` omitted entirely | 4xx, or the *safest* stage | ❌ defaults to `final` | 0.003s | [details](#c6) · `cases/TC-11` |
+| 7 | `stage: "banana"` | 4xx | ❌ 201, stored verbatim | 0.001s | [details](#c6) · `cases/TC-12` |
+| 8 | `final` against an account that does not exist | 404 | ❌ 201, notice written for a phantom | 0.001s | [details](#c6) · `cases/TC-13` |
+| 9 | Ten concurrent `final` notices | one row, or a conflict | ❌ ten 201s, ten rows | — | [details](#c7) · `cases/TC-61` |
+| 12 | One click on the console's own button | a confirmation step | ❌ dispatches immediately, no dialog | — | [details](#c12) · `cases/TC-70` |
+
+Note what is *not* being reported here. The README says there is no login and that `actor` is whatever the client sends; the supervisor half of the rule is therefore a known gap and I have not filed it. The ordering half is a different matter — "the two earlier notices exist for that account" is a pure data check against a table the handler already has a connection to, it needs no identity to enforce, and it is absent entirely.
+
+### <a id="c5"></a>Case 5 — a `final` notice with no `reminder` and no `warning`
+
+**What should happen.** `ACC-2043` had zero shutoff notices. A `final` is not a legal first step.
+
+**What happened.** Accepted.
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-2043","actor":"clerk-nobody","stage":"final"}' \
+  http://127.0.0.1:8414/api/shutoff
+```
+```json
+{ "ok": true, "account_id": "ACC-2043", "actor": "clerk-nobody" }
+```
+```
+HTTP 201 in 0.003028s
+```
+
+**Direct read** — before and after:
 
 ```
-$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage,issued_at FROM shutoff_notices WHERE account_id='ACC-2043';"
-1|ACC-2043|temp-intern|final|2026-08-21T13:25:55Z
+$ sqlite3 aqueduct.db "SELECT id,status FROM accounts WHERE id='ACC-2043';"      # before
+ACC-2043|active
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM shutoff_notices WHERE account_id='ACC-2043';"
+0
 
-$ sqlite3 aqueduct.db "SELECT id,status FROM accounts WHERE id='ACC-2043';"
+$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage,issued_at FROM shutoff_notices WHERE account_id='ACC-2043';"
+1|ACC-2043|clerk-nobody|final|2026-08-21T16:50:09Z
+$ sqlite3 aqueduct.db "SELECT id,status FROM accounts WHERE id='ACC-2043';"       # after
 ACC-2043|shutoff_pending
 ```
 
-Continuing through the rest of the policy on the same build, everything else was accepted too — a defaulted `final`, a stage of `BANANA`, three more identical dispatches, and one for an account that does not exist:
+**Why it happens.** `api_shutoff` (`server.py:168-179`) is nine lines: read `account_id`, read `actor`, INSERT, UPDATE, commit. There is no SELECT of prior notices, no stage comparison, no role concept, and no account lookup. The three-stage state machine described in the README exists in the README and nowhere in the code, so every transition is legal from every state.
 
-```
-$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage FROM shutoff_notices ORDER BY id;"
-1|ACC-2043|temp-intern|final
-2|ACC-5520|clerk-a|final              <- TC-07: no stage sent at all
-3|ACC-5520|clerk-a|BANANA             <- TC-09
-4|ACC-2043|temp-intern|final          <- TC-10
-5|ACC-2043|temp-intern|final
-6|ACC-2043|temp-intern|final
-7|ACC-DOES-NOT-EXIST|clerk-a|final    <- TC-11
+**What it costs.** A crew is dispatched to a customer who was never sent a reminder or a warning — for a water utility that is a household losing its supply without the notice period it is owed, and the README says the console cannot undo it. Case 1 makes this materially worse: an account can reach the disconnection queue on a balance that was computed wrong.
 
-$ sqlite3 aqueduct.db "SELECT count(*) FROM accounts WHERE id='ACC-DOES-NOT-EXIST';"
-0
-```
+**Fails if:** a `final` notice is written when fewer than two prior notices exist for that account. **Reproduced:** 2/2 via API, plus once through the UI (Case 12).
 
-**Why it happens.** `api_shutoff` read `account_id`, `actor` and `stage` and went straight to the INSERT. There was no query for existing notices, no stage whitelist, no duplicate check, no account lookup, and no supervisor condition — the entire policy lived in the README and the function's own one-line docstring ("Requires a supervisor"), and nowhere in the code. Worse, `body.get("stage", "final")` made the crew-dispatching value the default, so a caller who sent nothing got the most dangerous outcome.
+### <a id="c6"></a>Case 6, 7, 8 — the default is the destructive one, the value is unconstrained, and the account need not exist
 
-**What it costs.** A household's water supply physically cut off, on an account that may have had no warning at all, on the word of anyone who can reach the endpoint — and the README says it is not reversible from the console once the crew goes. Row 7 is a distinct harm: the API returned `{"ok": true}` for a crew dispatch against an account that does not exist, so the console reported an action that could not have happened. Row 4–6 mean a retry or a double-click dispatches repeatedly.
-
-**The fix.** `stage` is now required and whitelisted, with no default. The earlier stages must be on file. The same stage cannot be issued twice. The account must exist. `final` additionally requires an explicit `supervisor: true`. Only `final` moves the account to `shutoff_pending` — a reminder is recorded without changing status, since only a final notice dispatches a crew.
-
-<details><summary>the same five requests, after (each now refused, with the reason)</summary>
-
-```bash
-# TC-06 -- final, no prior notices
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-2043","actor":"temp-intern","stage":"final"}' \
-  http://localhost:8413/api/shutoff
-```
-```json
-{ "error": "cannot issue final for ACC-2043: no reminder or warning notice on file yet" }
-```
-```
-HTTP 409
-```
-
-```bash
-# TC-07 -- stage omitted
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","actor":"clerk-a"}' http://localhost:8413/api/shutoff
-```
-```json
-{ "error": "stage must be one of reminder, warning, final" }
-```
-```
-HTTP 400
-```
-
-```bash
-# TC-09 -- junk stage
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","actor":"clerk-a","stage":"BANANA"}' http://localhost:8413/api/shutoff
-```
-```json
-{ "error": "stage must be one of reminder, warning, final" }
-```
-```
-HTTP 400
-```
-
-```bash
-# TC-11 -- nonexistent account
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-DOES-NOT-EXIST","actor":"clerk-a","stage":"reminder"}' \
-  http://localhost:8413/api/shutoff
-```
-```json
-{ "error": "no such account: ACC-DOES-NOT-EXIST" }
-```
-```
-HTTP 404
-```
-</details>
-
-The positive control matters as much as the refusals — the legitimate process must still complete end to end:
-
-<details><summary>the correct sequence, after: reminder → warning → final(supervisor) → duplicate refused</summary>
-
-```bash
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","actor":"clerk-a","stage":"reminder"}' http://localhost:8413/api/shutoff
-```
-```json
-{ "ok": true, "account_id": "ACC-5520", "actor": "clerk-a", "stage": "reminder" }
-```
-```
-HTTP 201
-```
-
-```bash
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","actor":"clerk-a","stage":"warning"}' http://localhost:8413/api/shutoff
-```
-```json
-{ "ok": true, "account_id": "ACC-5520", "actor": "clerk-a", "stage": "warning" }
-```
-```
-HTTP 201
-```
-
-```bash
-# order now satisfied, but still no supervisor claim
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","actor":"clerk-a","stage":"final"}' http://localhost:8413/api/shutoff
-```
-```json
-{ "error": "a final notice sends a crew and may only be issued by a supervisor" }
-```
-```
-HTTP 403
-```
-
-```bash
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","actor":"sup-mendes","stage":"final","supervisor":true}' \
-  http://localhost:8413/api/shutoff
-```
-```json
-{ "ok": true, "account_id": "ACC-5520", "actor": "sup-mendes", "stage": "final" }
-```
-```
-HTTP 201
-```
-
-```bash
-# and again -- no second crew
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","actor":"sup-mendes","stage":"final","supervisor":true}' \
-  http://localhost:8413/api/shutoff
-```
-```json
-{ "error": "a final notice has already been issued for ACC-5520" }
-```
-```
-HTTP 409
-```
-</details>
-
-**Direct read** after the correct sequence — three notices in order, status moved once:
-
-```
-$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage FROM shutoff_notices ORDER BY id;"
-1|ACC-5520|clerk-a|reminder
-2|ACC-5520|clerk-a|warning
-3|ACC-5520|sup-mendes|final
-
-$ sqlite3 aqueduct.db "SELECT id,status FROM accounts WHERE id IN ('ACC-5520','ACC-2043');"
-ACC-2043|active
-ACC-5520|shutoff_pending
-```
-
-And a reminder alone does not move the account, which is the behaviour change worth a second look from Billing:
-
-```
-$ status before:                 active
-  POST stage=reminder ->         HTTP 201
-$ status after reminder:         active
-```
-
-**Fails if:** a `final` notice succeeds without both earlier stages on file and an explicit supervisor claim, or a duplicate stage is accepted, or a notice is written for an account that does not exist. **Reproduced:** 2/2 from clean seed. **Graduates to:** a test walking all three stages in order plus the four refusal paths.
-
-**Read the supervisor fix narrowly.** It is a claim the client sends, not authentication — see [Residual risk](#residual-risk).
-
----
-
-## Flow 3 — what the money endpoints accept
-
-Three endpoints take an amount from a clerk's keyboard and write it to a ledger. Working means the amount that lands is a number, of the right sign for its instrument, on an account that exists — and that a refusal says which field was wrong.
-
-| # | Case | Expected | Result | Time | Evidence |
-|---|------|----------|--------|------|----------|
-| 1 | [credit note of -500](#tc-03) | 4xx | ❌ 201, balance rose $500 | 0.002s | [cases/TC-03](cases/TC-03) |
-| 2 | [amount `"1e400"`](#tc-04a) | 4xx | ❌ 201, console-wide outage | 0.003s | [cases/TC-04a](cases/TC-04a) |
-| 3 | [amount `NaN`](#tc-04b) | 4xx | ❌ 500 + traceback | 0.002s | [cases/TC-04b](cases/TC-04b) |
-| 4 | [non-JSON bytes](#tc-12) | 400 | ❌ 500 + traceback | 0.007s | [cases/TC-12](cases/TC-12) |
-| 5 | [`account_id` missing](#tc-12) | 400 | ❌ 500 + traceback | 0.001s | [cases/TC-13](cases/TC-13) |
-| 6 | [amount as `[1,2,3]`](#tc-12) | 400 | ❌ 500 + traceback | 0.001s | [cases/TC-14](cases/TC-14) |
-| 7 | [amount as `null`](#tc-12) | 400 | ❌ 500 + traceback | 0.001s | [cases/TC-14b](cases/TC-14b) |
-| 8 | [empty body, no Content-Length](#tc-12) | 400 | ❌ 500 + traceback | 0.001s | [cases/TC-15](cases/TC-15) |
-| 9 | [writes on a nonexistent account](#tc-16) | 404 ×3 | ❌ 201 ×3, orphan rows | 0.002s | [cases/TC-16a](cases/TC-16a) |
-| 10 | [`read_on` as free text](#tc-17) | 400 | ❌ 201, consumption redefined | 0.001s | [cases/TC-17](cases/TC-17) |
-| 11 | [client-supplied `id` / `created_at`](#tc-18) | server values win | ✅ | 0.001s | [cases/TC-18](cases/TC-18) |
-| 12 | [12 concurrent adjustments](#tc-21) | 12 rows, exactly $120 | ✅ | — | [cases/TC-21](cases/TC-21) |
-| 13 | [5,000-character reason](#tc-22) | stored or rejected, not corrupted | ✅ stored in full | 0.002s | [cases/TC-22](cases/TC-22) |
-| 14 | [`GET` unknown account](#tc-12) | 404 | ✅ | 0.001s | [cases/TC-19b](cases/TC-19b) |
-
-Rows 11–14 passed on both builds and are worth stating plainly, because they bound the problem: there is no mass-assignment (the server ignored a client-supplied `id`, `created_at` and `is_supervisor`), no lost updates under concurrency, no truncation or encoding corruption on a long field, and the *read* side already returned correct 404s. That last one is what makes rows 4–8 defects rather than a house style — the same codebase knew how to return a 4xx.
-
-### <a id="tc-03"></a>TC-03 — a negative credit note is a permanent charge with no undo `[S1]`
-
-**Attacks:** a credit reduces what is owed · **Oracle:** the README formula (`... + adjustments − credits`) and the handler docstring stating credit notes cannot be voided
-**Fixture:** `ACC-1188` (balance $51.57)
-
-**What should happen.** A credit note credits the customer. A negative one is a charge wearing the wrong instrument's name, and since the formula subtracts credits it increases the balance. Given the docstring says there is no console path to void one, this must be refused.
-
-**What happened.** `201`, and the balance went from $51.57 to $551.57.
-
-<details><summary>request / response (before)</summary>
+<details><summary>Case 6 — omitting <code>stage</code> defaults to <code>final</code></summary>
 
 ```bash
 curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-1188","amount":-500,"reason":"typo, meant 500","actor":"clerk-a"}' \
-  http://localhost:8413/api/credit-notes
+  -d '{"account_id":"ACC-5520","actor":"clerk-nobody"}' \
+  http://127.0.0.1:8414/api/shutoff
 ```
 ```json
-{
-  "ok": true,
-  "billing": {
-    "account_id": "ACC-1188",
-    "rate_per_m3": 1.42,
-    "standing_fee": 4.0,
-    "consumption_m3": 33.5,
-    "charges": 51.57,
-    "adjustments": 0,
-    "credits": -500.0,
-    "balance_due": 551.57
-  }
-}
+{ "ok": true, "account_id": "ACC-5520", "actor": "clerk-nobody" }
 ```
 ```
-HTTP 201 in 0.001530s
+HTTP 201 in 0.003281s
 ```
+`server.py:175` — `body.get("stage", "final")`. A caller that forgets the field gets a crew.
 </details>
 
-**Direct read:**
-
-```
-$ sqlite3 aqueduct.db "SELECT id,account_id,amount,reason,actor FROM credit_notes ORDER BY id;"
-1|ACC-1188|-500.0|typo, meant 500|clerk-a
-```
-
-I also drove this through the UI rather than only the API, because the modal is where a clerk would actually do it — and the modal's own warning text makes the point. `06-credit-note-modal-negative-before.png` shows `-500` accepted in a dialog headed "Credit notes cannot be voided from the console." `07-credit-note-negative-after-balance-up.png` shows the result: Credits `-$500.00`, Balance due `$509.00`.
-
-![the credit note modal accepting -500, above its own warning that credit notes cannot be voided](06-credit-note-modal-negative-before.png)
-
-![after confirming: credits -$500.00 and the balance risen from $9.00 to $509.00](07-credit-note-negative-after-balance-up.png)
-
-**Why it happens.** `api_credit_note` did `float(body["amount"])` and inserted it. No sign check, and no check of any kind. The client-side guard in `confirmCreditNote` tested `isNaN(Number(raw))`, which `-500` passes.
-
-**What it costs.** A customer owes $500 they never consumed, and by the handler's own documentation there is no console path to reverse it — Finance reconciles credit notes nightly, so the error propagates into reconciliation before anyone notices. A single mistyped minus sign does this.
-
-**The fix.** `api_credit_note` rejects `amount <= 0` with a 400 that names the right instrument for the job. Adjustments deliberately still take either sign — that is what distinguishes them, and they are the reversible path.
-
-<details><summary>request / response (after)</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code}\n' -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-1188","amount":-500,"reason":"typo","actor":"clerk-a"}' \
-  http://localhost:8413/api/credit-notes
-```
-```json
-{ "error": "a credit note must be greater than zero; to raise what an account owes, use an adjustment" }
-```
-```
-HTTP 400
-```
-
-A legitimate positive credit note is still accepted, and a legitimate *negative adjustment* still is too:
-
-```bash
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-2043","amount":15.50,"reason":"goodwill, leak allowance","actor":"clerk-a"}' \
-  http://localhost:8413/api/credit-notes
-```
-```json
-{ "ok": true, "billing": { "charges": 26.01, "credits": 15.5, "balance_due": 10.51, "billing_status": "ok" } }
-```
-```
-HTTP 201
-```
-```bash
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-2043","amount":-3.25,"reason":"overbilled standing fee","actor":"clerk-a"}' \
-  http://localhost:8413/api/adjustments
-```
-```json
-{ "ok": true, "billing": { "adjustments": -3.25, "credits": 15.5, "balance_due": 7.26, "billing_status": "ok" } }
-```
-```
-HTTP 201
-```
-</details>
-
-**Fails if:** a credit note with an amount at or below zero is accepted, or a positive one is refused, or an adjustment of either sign is refused. **Reproduced:** 2/2 via API, 1/1 via UI. **Graduates to:** a test asserting `POST /api/credit-notes` with `-1`, `0` and `1` returns 400, 400, 201.
-
-### <a id="tc-04a"></a>TC-04a — one mistyped amount makes every account disappear from the console `[S1]`
-
-**Attacks:** one account's bad data cannot break another account's screen · **Oracle:** `JSON.parse` — the API's own client cannot read its output
-**Fixture:** `ACC-2043`
-
-**What should happen.** `"1e400"` is not a usable amount. Reject it.
-
-**What happened.** `float("1e400")` is `inf`, which was stored, and `json.dumps` then emitted the bare token `Infinity`. That is not valid JSON.
-
-<details><summary>request / response (before) — note the response body is itself invalid JSON</summary>
+<details><summary>Case 7 — <code>stage: "banana"</code> is stored verbatim</summary>
 
 ```bash
 curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-2043","amount":"1e400","reason":"fat finger","actor":"clerk-a"}' \
-  http://localhost:8413/api/adjustments
+  -d '{"account_id":"ACC-5520","actor":"x","stage":"banana"}' \
+  http://127.0.0.1:8414/api/shutoff
 ```
 ```json
-{
-  "ok": true,
-  "billing": {
-    "account_id": "ACC-2043",
-    "rate_per_m3": 1.42,
-    "standing_fee": 4.0,
-    "consumption_m3": 15.5,
-    "charges": 26.01,
-    "adjustments": Infinity,
-    "credits": 0,
-    "balance_due": Infinity
-  }
-}
-```
-```
-HTTP 201 in 0.003408s
-```
-</details>
-
-**The worst consequence, tested rather than assumed.** The obvious harm is one wrong balance. I followed it to the list endpoint that every clerk hits on page load, and it carries the token too:
-
-```
-$ curl -sS http://localhost:8413/api/accounts | grep -n 'balance_due'
-9:      "balance_due": 551.57,
-18:      "balance_due": Infinity,      <- one poisoned row
-27:      "balance_due": 0.0,
-36:      "balance_due": 107.85,
-45:      "balance_due": 4.0,
-54:      "balance_due": 109.9,
-```
-
-```
-$ node -e 'JSON.parse(fs.readFileSync("/tmp/aq-list.json","utf8"))'
-JSON.parse THREW: Unexpected token 'I', ..."nce_due": Infinity,"... is not valid JSON
-
-$ python3 -c 'json.loads(raw, parse_constant=reject)'
-STRICT PARSE FAILED (this is what the browser does): invalid JSON token: 'Infinity'
-LENIENT PARSE (python default): ok -- masks the problem
-```
-
-That last line is why this survived: Python's own parser accepts `Infinity` by default, so any server-side test would have passed while the browser choked.
-
-In the browser, the effect is total. Console error, and an empty table:
-
-![the accounts list after one bad adjustment: headers only, all six accounts gone, no error shown to the clerk](09-console-dead-after-one-adjustment.png)
-
-```
-[error] Uncaught (in promise) SyntaxError: Unexpected token 'I', ..."nce_due": Infinity,"... is not valid JSON
-```
-
-**Why it happens.** Three things compounding: `float()` accepts overflow silently and returns `inf`; `json.dumps` emits non-standard `Infinity` unless told otherwise; and `load()` in `app.js` had no rejection handler, so the parse failure surfaced as a blank table rather than an error. A clerk sees a console reporting zero accounts and no reason.
-
-**What it costs.** Total loss of the primary screen for every user of the console, from one clerk's typo on one account, with no way to recover from inside the console — repairing it needs direct database access. The blank table is also actively misleading: it is indistinguishable from an empty database.
-
-**The fix.** Three layers, because each failed independently. `req_amount` rejects non-finite values with a 400. `_send` uses `allow_nan=False`, so the API can never emit invalid JSON even if a non-finite value reaches it another way. `load()` has a `.catch()` that tells the clerk.
-
-<details><summary>request / response (after)</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code}\n' -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-2043","amount":"1e400","reason":"fat finger","actor":"clerk-a"}' \
-  http://localhost:8413/api/adjustments
-```
-```json
-{ "error": "amount must be a finite number" }
-```
-```
-HTTP 400
-```
-```
-$ node -e 'JSON.parse(...)'  # on /api/accounts
-JSON.parse ok, accounts: 6
-```
-</details>
-
-**Fails if:** any endpoint accepts a non-finite amount, or any response body fails `JSON.parse`. **Reproduced:** 2/2. **Graduates to:** a test posting `1e400`, `-1e400` and `NaN` expecting 400, plus an assertion that `/api/accounts` output survives a strict parse.
-
-### <a id="tc-04b"></a>TC-04b and <a id="tc-12"></a>TC-12/13/14/15 — every malformed request returned a 500 with a full traceback `[S2]`
-
-**Attacks:** the error contract · **Oracle:** internal consistency — `GET /api/accounts/ACC-NOPE` on the same build returns a clean `404 {"error": "no such account"}`
-
-Five different malformed inputs, five 500s, each carrying `traceback.format_exc()` in the response body. The bodies name absolute source paths, the Python install location, and the failing source lines.
-
-<details><summary>the five requests and their responses (before), abridged at the traceback</summary>
-
-```bash
-# TC-04b -- amount NaN
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-2043","amount":NaN,"reason":"nan probe","actor":"clerk-a"}' \
-  http://localhost:8413/api/adjustments
-```
-```json
-{
-  "error": "server error",
-  "trace": "Traceback (most recent call last):\n  File \"/srv/aqueduct/server.py\", line 247, in do_POST\n    code, out = fn(conn, body)\n ... File \"/srv/aqueduct/server.py\", line 142, in api_adjustment\n    conn.execute(\n ... sqlite3.IntegrityError: NOT NULL constraint failed: adjustments.amount\n"
-}
-```
-```
-HTTP 500 in 0.001797s
-```
-
-```bash
-# TC-12 -- bytes that are not JSON
-curl -sS -X POST -H 'Content-Type: application/json' \
-  --data-binary 'not json at all {{{' http://localhost:8413/api/adjustments
-```
-```json
-{
-  "error": "server error",
-  "trace": "Traceback ... File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/json/decoder.py\", line 363, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n"
-}
-```
-```
-HTTP 500 in 0.006643s
-```
-
-```bash
-# TC-13 -- account_id missing
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"amount":10,"reason":"no account id"}' http://localhost:8413/api/adjustments
-```
-```json
-{ "error": "server error", "trace": "Traceback ... line 140, in api_adjustment\n    account_id = body[\"account_id\"]\nKeyError: 'account_id'\n" }
-```
-```
-HTTP 500 in 0.001237s
-```
-
-```bash
-# TC-14 -- amount as an array
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-1188","amount":[1,2,3],"reason":"array"}' http://localhost:8413/api/adjustments
-```
-```json
-{ "error": "server error", "trace": "Traceback ... TypeError: float() argument must be a string or a real number, not 'list'\n" }
-```
-```
-HTTP 500 in 0.000962s
-```
-
-```bash
-# TC-15 -- no body at all
-curl -sS -X POST http://localhost:8413/api/adjustments
-```
-```json
-{ "error": "server error", "trace": "Traceback ... KeyError: 'account_id'\n" }
-```
-```
-HTTP 500 in 0.000976s
-```
-</details>
-
-**Why it happens.** The handlers indexed the body directly (`body["account_id"]`) and cast without guarding (`float(body["amount"])`), so ordinary bad input raised through to the catch-all, which returned the traceback to the caller. There was no validation layer and no client-error class.
-
-**What it costs.** Two separate harms. Operationally, a 500 is indistinguishable from a real fault, so genuine incidents hide among ordinary typos and the console cannot tell a clerk what they got wrong. Informationally, the response body discloses filesystem layout, the Python version and install path, and the exact failing source line — free reconnaissance for anyone on the office network the README says this runs on.
-
-**The fix.** An `ApiError` class carrying the intended status; `req_str`, `req_amount`, `req_read_on` and `require_account` validators used by every handler; JSON parse failure and non-object bodies mapped to 400; and the catch-all now logs the traceback to stderr and returns a bare `{"error": "server error"}`.
-
-<details><summary>the same five, after</summary>
-
-```
-POST /api/adjustments  amount NaN          -> 400 {"error": "amount must be a finite number"}
-POST /api/adjustments  'not json at all'   -> 400 {"error": "request body is not valid JSON"}
-POST /api/adjustments  no account_id       -> 400 {"error": "account_id is required and must be a non-empty string"}
-POST /api/adjustments  amount [1,2,3]      -> 400 {"error": "amount must be a number"}
-POST /api/adjustments  empty body          -> 400 {"error": "account_id is required and must be a non-empty string"}
-```
-
-Across the whole re-verification transcript:
-
-```
-$ grep -c '"trace"' reverify.txt        # traceback fields in any response body
-0
-$ grep -c 'HTTP 500' reverify.txt
-0
-$ grep -o 'HTTP [0-9]*' reverify.txt | sort | uniq -c
-  10 HTTP 400
-   1 HTTP 404
-   1 HTTP 409
-$ grep -c 'Traceback' server-after-fix.log   # and none crashed server-side either
-0
-```
-</details>
-
-**Fails if:** any malformed request returns a 5xx, or any response body contains a stack trace or a filesystem path. **Reproduced:** 2/2 each.
-
-### <a id="tc-16"></a>TC-16 — all three write endpoints accept an account that does not exist `[S2]`
-
-**Attacks:** actors touch only records that exist · **Oracle:** internal consistency with the read side, which 404s
-**Fixture:** `GHOST-1` (deliberately absent from `accounts`)
-
-<details><summary>requests / responses (before) — note the `null`</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"GHOST-1","meter_m3":999}' http://localhost:8413/api/readings
-```
-```json
-{ "ok": true, "billing": null }
-```
-```
-HTTP 201 in 0.003061s
-```
-```bash
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"GHOST-1","amount":250,"reason":"orphan adj","actor":"clerk-a"}' \
-  http://localhost:8413/api/adjustments
-```
-```json
-{ "ok": true, "billing": null }
-```
-```
-HTTP 201 in 0.001464s
-```
-```bash
-curl -sS -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"GHOST-1","amount":250,"reason":"orphan credit","actor":"clerk-a"}' \
-  http://localhost:8413/api/credit-notes
-```
-```json
-{ "ok": true, "billing": null }
+{ "ok": true, "account_id": "ACC-5520", "actor": "x" }
 ```
 ```
 HTTP 201 in 0.001335s
 ```
 </details>
 
-**Direct read** — the orphan rows:
-
-```
-$ sqlite3 aqueduct.db "SELECT 'reading', id, account_id, meter_m3 FROM readings WHERE account_id='GHOST-1'
-                       UNION ALL SELECT 'adjustment', id, account_id, amount FROM adjustments WHERE account_id='GHOST-1'
-                       UNION ALL SELECT 'credit_note', id, account_id, amount FROM credit_notes WHERE account_id='GHOST-1';"
-reading|16|GHOST-1|999.0
-adjustment|2|GHOST-1|250.0
-credit_note|2|GHOST-1|250.0
-```
-
-**Why it happens.** No handler looked the account up, and the schema declares no foreign keys (SQLite would not enforce them by default even if it did). The `"billing": null` in each response is the tell: `balance()` returned `None` *because the account does not exist*, and the handler reported success anyway.
-
-**What it costs.** Money rows accumulate against identifiers that no account will ever reconcile to — invisible on every screen, since nothing lists them, but present in any query that sums the ledger tables. A clerk's typo in an account id is enough.
-
-**The fix.** `require_account` on all four write handlers.
-
-<details><summary>after</summary>
-
-```
-POST /api/readings      {"account_id":"GHOST-1",...} -> 404
-POST /api/adjustments   {"account_id":"GHOST-1",...} -> 404
-POST /api/credit-notes  {"account_id":"GHOST-1",...} -> 404
-```
-```
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM readings WHERE account_id='GHOST-1';"     0
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM adjustments WHERE account_id='GHOST-1';"  0
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM credit_notes WHERE account_id='GHOST-1';" 0
-```
-</details>
-
-**Fails if:** any write endpoint returns 2xx for an unknown `account_id`. **Reproduced:** 2/2.
-
-### <a id="tc-17"></a>TC-17 — an unvalidated date silently redefines which readings the bill is based on `[S1]`
-
-**Attacks:** consumption reflects the actual reading history · **Oracle:** the ordering the biller itself uses (`ORDER BY read_on DESC, id DESC`)
-**Fixture:** `ACC-5520` (consumption +47.0 m³, balance $107.85)
-
-**This is not the signed-off negative consumption.** The sign-off in the README covers a physical meter swap, where the reading legitimately restarts at zero. This is a free-text date field that is not a date at all, changing which readings count as current. Separating the two was the point of running [TC-02](#tc-02) first.
-
-**What should happen.** `read_on` orders the readings that determine consumption. A value that is not a date must be refused.
-
-**What happened.** `"whenever"` was accepted, and because the column is text and the sort is lexical, it sorts above every ISO date — so it became the latest reading.
-
-<details><summary>request / response (before)</summary>
+<details><summary>Case 8 — a final notice for an account that does not exist</summary>
 
 ```bash
 curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","meter_m3":10,"read_on":"whenever"}' \
-  http://localhost:8413/api/readings
+  -d '{"account_id":"ACC-DOES-NOT-EXIST","actor":"x","stage":"final"}' \
+  http://127.0.0.1:8414/api/shutoff
 ```
 ```json
-{
-  "ok": true,
-  "billing": {
-    "account_id": "ACC-5520",
-    "rate_per_m3": 2.05,
-    "standing_fee": 11.5,
-    "consumption_m3": -692.0,
-    "charges": -1407.1,
-    "adjustments": 0,
-    "credits": 0,
-    "balance_due": -1407.1
-  }
-}
+{ "ok": true, "account_id": "ACC-DOES-NOT-EXIST", "actor": "x" }
 ```
 ```
-HTTP 201 in 0.001486s
+HTTP 201 in 0.001222s
 ```
+```
+$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage FROM shutoff_notices ORDER BY id;"
+1|ACC-2043|clerk-nobody|final
+2|ACC-5520|clerk-nobody|final
+3|ACC-5520|x|banana
+4|ACC-DOES-NOT-EXIST|x|final
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM accounts WHERE id='ACC-DOES-NOT-EXIST';"
+0
+```
+The `UPDATE accounts` silently matches nothing, so the row is written and the response still says `ok`.
 </details>
 
-**Direct read** — the readings in the order the biller sees them:
+Taken together these three mean the `stage` column — the field that decides whether a crew is sent — accepts any string, defaults to the most destructive one, and does not require the account to be real.
 
-```
-$ sqlite3 aqueduct.db "SELECT id,read_on,meter_m3 FROM readings WHERE account_id='ACC-5520' ORDER BY read_on DESC, id DESC;"
-17|whenever|10.0        <- sorts above every date, so it is "latest"
-13|2026-08-01|702.0
-12|2026-07-01|655.0
-11|2026-06-01|610.0
-```
+### <a id="c7"></a>Case 9 — ten concurrent final notices produce ten dispatches
 
-**Why it happens.** `api_add_reading` took `body.get("read_on")` unvalidated into a `TEXT` column, and `consumption()` orders on that column. Any string that sorts high becomes the current reading. Consumption went from +47.0 to −692.0 and the balance to −$1,407.10 — the utility now owing the customer $1,407.
+<details><summary>request / response</summary>
 
-**What it costs.** A wrong bill in the customer's favour by four figures, from a typo, with nothing on any screen indicating the reading history is nonsense. It also generalises: a date typed a year ahead would do the same thing while looking entirely plausible in the readings table.
-
-**The fix.** `req_read_on` requires a real `YYYY-MM-DD` date via `date.fromisoformat` and rejects future dates, since a meter cannot be read in the future. Negative *consumption* is untouched — TC-02 re-verifies the sanctioned meter-swap case still produces −1301.5 m³. A negative *meter reading* is separately rejected, because a physical meter counts up from zero; that check does not clamp consumption either.
-
-<details><summary>after</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code}\n' -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-5520","meter_m3":10,"read_on":"whenever"}' http://localhost:8413/api/readings
-```
-```json
-{ "error": "read_on must be a YYYY-MM-DD date, got 'whenever'" }
-```
-```
-HTTP 400
-```
-```
-$ consumption after the refused request:  47.0    (unchanged)
-$ balance_due after the refused request:  107.85  (unchanged)
-```
-</details>
-
-**Fails if:** a non-date `read_on` is accepted, or a future date is accepted, or the signed-off meter-swap case stops carrying its negative period. **Reproduced:** 2/2. **Graduates to:** a test posting `"whenever"`, a future date, and a valid past date, expecting 400/400/201, plus the TC-02 meter-swap assertion so a future "fix" cannot clamp it.
-
-### <a id="tc-18"></a>TC-18, <a id="tc-21"></a>TC-21, <a id="tc-22"></a>TC-22 — what held up
-
-These passed on both builds, and they matter because they bound the damage.
-
-<details><summary>TC-18 — client-supplied `id`, `created_at` and `is_supervisor` are ignored</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST -H 'Content-Type: application/json' \
-  -d '{"account_id":"ACC-1188","amount":1,"reason":"extra","actor":"clerk-a","id":9999,"created_at":"1970-01-01T00:00:00Z","is_supervisor":true}' \
-  http://localhost:8413/api/adjustments
-```
-```
-HTTP 201 in 0.001401s
-```
-```
-$ sqlite3 aqueduct.db "SELECT id,account_id,amount,reason,created_at FROM adjustments WHERE reason='extra';"
-3|ACC-1188|1.0|extra|2026-08-21T13:27:28Z
-```
-Server id and server timestamp won; the injected `9999` and `1970-01-01` were discarded. No mass-assignment.
-</details>
-
-<details><summary>TC-21 — 12 concurrent adjustments conserve exactly, on both builds</summary>
-
-```bash
-for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-  curl -sS -o /dev/null -w '%{http_code} ' -X POST -H 'Content-Type: application/json' \
-    -d '{"account_id":"ACC-9002","amount":10,"reason":"concurrent","actor":"clerk-c"}' \
-    http://localhost:8413/api/adjustments &
+```sh
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  curl -sS -o /dev/null -w "%{http_code} " -X POST -H "Content-Type: application/json" \
+    -d '{"account_id":"ACC-1188","actor":"clerk","stage":"final"}' \
+    http://127.0.0.1:8414/api/shutoff &
 done; wait
 ```
 ```
-201 201 201 201 201 201 201 201 201 201 201 201
+201 201 201 201 201 201 201 201 201 201
 ```
 ```
-$ sqlite3 aqueduct.db "SELECT COUNT(*) rows_written, SUM(amount) total FROM adjustments WHERE reason='concurrent';"
-rows_written  total
-------------  -----
-12            120.0
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM shutoff_notices WHERE account_id='ACC-1188' AND stage='final';"
+10
 ```
-No lost updates, no `database is locked` errors, no duplicate suppression. Re-run after the fixes: still 12 rows, still exactly 120.0.
 </details>
 
-<details><summary>TC-22 — a 5,000-character reason is stored in full, uncorrupted</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST -H 'Content-Type: application/json' \
-  -d "{\"account_id\":\"ACC-7310\",\"amount\":1,\"reason\":\"$(python3 -c 'print("A"*5000)')\",\"actor\":\"clerk-a\"}" \
-  http://localhost:8413/api/adjustments
-```
-```
-HTTP 201 in 0.001844s
-```
-```
-$ sqlite3 aqueduct.db "SELECT id, LENGTH(reason) FROM adjustments WHERE account_id='ACC-7310';"
-16|5000
-```
-No truncation, no encoding corruption. Not filed as a defect — SQLite `TEXT` is unbounded and there is no documented limit to enforce. Carried to residual risk instead, because the field renders in the ledger table.
-</details>
+There is no check-then-act to lose here, because there is no check at all. Ten dispatch records for one household.
 
 ---
 
-## Flow 4 — the console in a browser
+## Flow 3 — Writing money: adjustments and credit notes
 
-Driven in Chrome through the DevTools MCP at a pinned viewport of 1280×900×1. This is where the server-side findings become what a clerk actually sees, and where four defects live that no API call would have found.
+Both endpoints take an amount from the client and write it straight to the ledger. The code's own docstring says credit notes are irreversible: "Finance reconciles them nightly and there is no console path to void one." Working means the amount stored is a real, finite, correctly-signed number that the clerk meant to write exactly once.
+
+| # | Case | Expected | Result | Time | Evidence |
+|---|------|----------|--------|------|----------|
+| 9 | Credit note of `-5000` | 400 | ❌ 201, balance $107.85 → $5,107.85 | 0.003s | [details](#c9) · `cases/TC-26` |
+| 10 | Credit note of `1e400` | 400 | ❌ 201, stores `Inf`, breaks the whole console | 0.007s | [details](#c10) · `cases/TC-25`, `TC-25b`, `TC-71` |
+| 11 | Same credit note sent twice | one row, or 409 | ❌ two rows, same second | — | [details](#c11) · `cases/TC-60` |
+| 13 | Missing `amount` | 400 | ❌ 500 + full traceback | 0.003s | [details](#c13) · `cases/TC-20` |
+| 13 | `amount: "abc"` | 400 | ❌ 500 + traceback | 0.001s | [details](#c13) · `cases/TC-21` |
+| 13 | Malformed bytes, not JSON | 400 | ❌ 500 + traceback naming the Python install | 0.002s | [details](#c13) · `cases/TC-28` |
+| 13 | Wrong types (object, array) | 400 | ❌ 500 + traceback | 0.001s | [details](#c13) · `cases/TC-53` |
+| 13 | `amount: "NaN"` | 400 | ❌ 500 + traceback (rejected by SQLite, not by the app) | 0.002s | [details](#c13) · `cases/TC-24` |
+| 13 | `meter_m3: "not-a-number"` | 400 | ❌ 500 + traceback | 0.003s | [details](#c13) · `cases/TC-40` |
+| 8 | Credit note against a phantom account | 404 | ❌ 201, `billing: null` | 0.001s | [details](#c8b) · `cases/TC-27` |
+| 8 | Reading against a phantom account | 404 | ❌ 201, orphan row | 0.001s | [details](#c8b) · `cases/TC-42` |
+| 16 | 20,004-char reason with a bidi override | 400, or a length cap | ❌ 201, stored whole | — | [details](#c16) · `cases/TC-62` |
+
+### <a id="c9"></a>Case 9 — a credit note that charges the customer $5,000
+
+**What should happen.** A credit note reduces what a customer owes. A negative one is a charge wearing a credit's label, and the balance formula subtracts it: `balance = charges + adjustments − credits`, so a negative `credits` term adds.
+
+**What happened.**
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-5520","amount":-5000,"reason":"negative credit","actor":"clerk"}' \
+  http://127.0.0.1:8414/api/credit-notes
+```
+```json
+{ "ok": true,
+  "billing": { "account_id": "ACC-5520", "rate_per_m3": 2.05, "standing_fee": 11.5,
+               "consumption_m3": 47.0, "charges": 107.85,
+               "adjustments": 0, "credits": -5000.0, "balance_due": 5107.85 } }
+```
+```
+HTTP 201 in 0.003106s
+```
+
+**Why it happens.** `api_credit_note` does `float(body["amount"])` and inserts. There is no sign check, no bound, and no distinction in the schema between the two ledger tables — `adjustments` and `credit_notes` are structurally identical, so nothing encodes that one of them is only ever supposed to move the balance one way.
+
+**What it costs.** A customer is billed $5,000 they do not owe, recorded as a credit, and neither the console nor Finance's nightly reconciliation has a void path. Adjustments can legitimately be negative; credit notes carrying a negative is a category error the schema permits.
+
+**Fails if:** a credit note with `amount < 0` is accepted. **Reproduced:** 2/2.
+
+### <a id="c10"></a>Case 10 — one credit note takes down the accounts list for everyone
+
+**What should happen.** An amount that is not a finite number should be rejected with a 400.
+
+**What happened.** `float("1e400")` is `inf` in Python. SQLite stores it. `json.dumps` serialises it as the bare token `Infinity`, which JSON does not define — so the response is not JSON, and `JSON.parse` throws.
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-5520","amount":"1e400","reason":"field retry","actor":"clerk"}' \
+  http://127.0.0.1:8414/api/credit-notes
+```
+```json
+{ "ok": true,
+  "billing": { "account_id": "ACC-5520", "charges": 107.85,
+               "adjustments": 0, "credits": Infinity, "balance_due": -Infinity } }
+```
+```
+HTTP 201 in 0.001355s
+```
+
+**Direct read** — it is on disk:
+
+```
+$ sqlite3 aqueduct.db "SELECT id,account_id,amount FROM credit_notes WHERE account_id='ACC-5520';"
+1|ACC-5520|Inf
+```
+
+**The blast radius, measured.** Before the injection the list endpoint parsed cleanly; after it, it does not — and the failure is not confined to the account that was poisoned:
+
+```
+$ curl -sS http://127.0.0.1:8414/api/accounts | grep -n Infinity
+9:      "balance_due": -Infinity,
+
+# same strictness as the browser's JSON.parse
+$ python3 -c "import json,sys; json.loads(sys.stdin.read(), parse_constant=lambda c: (_ for _ in ()).throw(ValueError(c)))" < list-payload.json
+STRICT PARSE FAILED: non-standard token: -Infinity
+```
+
+Measured from inside the page:
+
+```json
+{ "rowsRenderedOnListScreen": 0,
+  "listApiHttpStatus": 200,
+  "listJsonParses": false,
+  "listParseError": "No number after minus sign in JSON at position 925 (line 36 column 23)",
+  "unaffectedDetailStillParses": true,
+  "poisonedDetailStillParses": false }
+```
+
+Healthy list, then the same screen after one poisoned credit note on one unrelated account:
+
+![The accounts list rendering all six accounts normally](01-accounts-list-desktop.png)
+
+![The same list after a single 1e400 credit note on ACC-5520: headers only, zero rows, every account gone](10-accounts-list-dead-after-overflow.png)
+
+**Why it happens.** Three separate omissions line up. `float()` accepts overflow to infinity without complaint; SQLite's REAL column stores it; and Python's `json.dumps` emits non-standard `Infinity`/`NaN` tokens by default rather than raising (`allow_nan=True` is the default). On the client, `load()` has no `.catch`, so the rejected promise kills the render silently — the server returns HTTP 200 the whole time, so nothing looks wrong from the outside.
+
+**What it costs.** The accounts list is the console's home screen and the only navigation to any account. One bad amount — reachable by a fat-fingered exponent or a retry loop — blanks it for every clerk in the office and in the field, and the detail page for the poisoned account is unreachable too, which is the page you would open to diagnose it. Recovery needs direct SQL, because the docstring is explicit that there is no console path to void a credit note. Note the `NaN` variant (`cases/TC-24`) is stopped only by chance, by a `NOT NULL` constraint at the storage layer, not by the application.
+
+**Fails if:** a non-finite amount is accepted, or `/api/accounts` emits a token `JSON.parse` rejects. **Reproduced:** 2/2.
+
+### <a id="c11"></a>Case 11 — the same irreversible credit note, twice
+
+<details><summary>request / response</summary>
+
+```sh
+for i in 1 2; do
+  curl -sS -w '\nHTTP %{http_code}\n' -X POST -H 'Content-Type: application/json' \
+    -d '{"account_id":"ACC-1188","amount":40,"reason":"goodwill CN-77","actor":"clerk"}' \
+    http://127.0.0.1:8414/api/credit-notes
+done
+```
+```json
+{ "ok": true, "billing": { "credits": 40.0, "balance_due": 11.57 } }
+HTTP 201
+{ "ok": true, "billing": { "credits": 80.0, "balance_due": -28.43 } }
+HTTP 201
+```
+```
+$ sqlite3 aqueduct.db "SELECT id,amount,reason,created_at FROM credit_notes;"
+4|40.0|goodwill CN-77|2026-08-21T16:52:01Z
+5|40.0|goodwill CN-77|2026-08-21T16:52:01Z
+```
+</details>
+
+No idempotency key, no natural-key constraint, no time-window duplicate check. Two identical irreversible credits in the same second. The oracle here is the endpoint's own docstring: something the system declares un-voidable should be hard to write twice by accident, and the field-phone retry is the obvious way it happens.
+
+### <a id="c13"></a>Case 13 — every malformed input returns 500 with a full traceback
+
+Seven probes, one contract. Any input the handler cannot coerce escapes as an unhandled exception into the catch-all at `server.py:251-253`, which serialises `traceback.format_exc()` into the response body.
+
+<details><summary>Missing required field → 500</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-1188","reason":"no amount field","actor":"clerk"}' \
+  http://127.0.0.1:8414/api/adjustments
+```
+```json
+{
+  "error": "server error",
+  "trace": "Traceback (most recent call last):\n  File \"/…/mqa-v5/server.py\", line 247, in do_POST\n    code, out = fn(conn, body)\n  File \"/…/mqa-v5/server.py\", line 141, in api_adjustment\n    amount = float(body[\"amount\"])\nKeyError: 'amount'\n"
+}
+```
+```
+HTTP 500 in 0.002805s
+```
+</details>
+
+<details><summary>Non-numeric amount → 500</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-1188","amount":"abc","reason":"x","actor":"clerk"}' \
+  http://127.0.0.1:8414/api/adjustments
+```
+```json
+{ "error": "server error",
+  "trace": "…line 141, in api_adjustment\n    amount = float(body[\"amount\"])\nValueError: could not convert string to float: 'abc'\n" }
+```
+```
+HTTP 500 in 0.000987s
+```
+</details>
+
+<details><summary>Bytes that are not JSON → 500, and the traceback names the Python install</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d 'not json at all {{{' \
+  http://127.0.0.1:8414/api/adjustments
+```
+```json
+{ "error": "server error",
+  "trace": "…\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/json/decoder.py\", line 363, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n" }
+```
+```
+HTTP 500 in 0.002003s
+```
+</details>
+
+<details><summary>Wrong types → 500</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":["ACC-1188"],"amount":{"v":10},"reason":null,"actor":[]}' \
+  http://127.0.0.1:8414/api/adjustments
+```
+```json
+{ "error": "server error",
+  "trace": "…line 141, in api_adjustment\n    amount = float(body[\"amount\"])\nTypeError: float() argument must be a string or a real number, not 'dict'\n" }
+```
+```
+HTTP 500 in 0.001130s
+```
+</details>
+
+<details><summary><code>amount: "NaN"</code> → 500, caught by SQLite rather than by the app</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-1188","amount":"NaN","reason":"nan probe","actor":"clerk"}' \
+  http://127.0.0.1:8414/api/credit-notes
+```
+```json
+{ "error": "server error",
+  "trace": "…line 159, in api_credit_note\n    conn.execute(\n…\nsqlite3.IntegrityError: NOT NULL constraint failed: credit_notes.amount\n" }
+```
+```
+HTTP 500 in 0.001574s
+```
+No row was written — but by accident, at the storage layer, not because the application rejected it.
+</details>
+
+<details><summary>Non-numeric meter reading → 500</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-2043","meter_m3":"not-a-number"}' \
+  http://127.0.0.1:8414/api/readings
+```
+```json
+{ "error": "server error",
+  "trace": "…line 128, in api_add_reading\n    meter_m3 = float(body[\"meter_m3\"])\nValueError: could not convert string to float: 'not-a-number'\n" }
+```
+```
+HTTP 500 in 0.002768s
+```
+</details>
+
+**Why it happens.** No handler validates anything. Each reads `body["field"]` and coerces, and `do_POST`'s bare `except Exception` converts every failure into a 500 carrying `traceback.format_exc()`.
+
+**What it costs.** Two things. Operationally, a 500 tells the client the *server* failed, so a well-behaved caller retries — against endpoints with no idempotency (Case 11). Informationally, the body leaks absolute source paths, line numbers, source text, the interpreter version and the install layout to anyone on the office network, which the README notes is the only thing standing in for authentication.
+
+**Fails if:** any malformed request returns 5xx rather than 4xx, or any response body contains a stack trace. **Reproduced:** 2/2 for each probe.
+
+### <a id="c8b"></a>Case 8b — money and readings written against accounts that do not exist
+
+<details><summary>Credit note for a phantom account</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-NOPE","amount":250,"reason":"phantom","actor":"clerk"}' \
+  http://127.0.0.1:8414/api/credit-notes
+```
+```json
+{ "ok": true, "billing": null }
+```
+```
+HTTP 201 in 0.001261s
+```
+</details>
+
+<details><summary>Reading for a phantom account, and the orphan it leaves</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-NOPE-2","meter_m3":500}' \
+  http://127.0.0.1:8414/api/readings
+```
+```json
+{ "ok": true, "billing": null }
+```
+```
+HTTP 201 in 0.001307s
+```
+```
+$ sqlite3 aqueduct.db "SELECT r.id,r.account_id FROM readings r LEFT JOIN accounts a ON a.id=r.account_id WHERE a.id IS NULL;"
+17|ACC-NOPE-2
+```
+</details>
+
+No table declares a foreign key and no handler checks existence, so a typo'd account id produces a silently orphaned money row that no account screen will ever display. `"billing": null` is the only hint, and the status is still 201.
+
+### <a id="c16"></a>Case 16 — a 20,004-character reason with a bidi override
+
+<details><summary>request / response</summary>
+
+```python
+reason = "A"*20000 + " " + chr(0x202E) + " \U0001F4A7"   # + RTL override + emoji
+body = json.dumps({"account_id":"ACC-1188","amount":1,"reason":reason,"actor":"x"})
+# POST /api/adjustments
+```
+```
+HTTP 201
+```
+```
+$ sqlite3 aqueduct.db "SELECT id,LENGTH(reason),amount FROM adjustments;"
+1|20004|1.0
+```
+</details>
+
+Low severity by itself; it matters because that field is rendered into the ledger table through `innerHTML` (Case 15) and there is no length cap on a free-text column that reaches every clerk's screen.
+
+---
+
+## Flow 4 — The console UI
+
+The front end is 183 lines of plain JS. Working means it shows what the API returned, tells the clerk when something is wrong, and does not execute data as code.
 
 | # | Case | Expected | Result | Evidence |
 |---|------|----------|--------|----------|
-| 1 | [seeded holder name executes as script](#tc-23) | rendered as text | ❌ `document.title` → `AQ-XSS` | [cases/TC-23](cases/TC-23) |
-| 2 | [clerk-typed reason executes as script](#tc-24) | rendered as text | ❌ payload ran for every viewer | [cases/TC-24](cases/TC-24) |
-| 3 | [unbillable account's balance tile](#tc-26) | flagged, not priced | ❌ "$0.00 — paid in full", green | [cases/TC-26](cases/TC-26) |
-| 4 | [account with no readings](#tc-25) | empty state | ❌ "null m3", row of "undefined" | [cases/TC-25](cases/TC-25) |
-| 5 | [console clean on load](#tc-27) | no errors | ❌ uncaught TypeError every load | [cases/TC-27](cases/TC-27) |
-| 6 | [irreversible shutoff needs confirming](#tc-28) | confirm step | ❌ fired on one click | [cases/TC-28](cases/TC-28) |
-| 7 | [comma decimal in the amount field](#tc-29) | validation message | ❌ 500, generic toast | [cases/TC-29](cases/TC-29) |
-| 8 | [unknown account in the URL](#tc-30) | not-found state | ❌ live action panel | [cases/TC-30](cases/TC-30) |
-| 9 | [Reports nav link (documented gap)](#tc-19a) | placeholder | ⚠️ raw JSON 404 | [cases/TC-19a](cases/TC-19a) |
+| 14 | Account with no readings | an empty state | ❌ "null m3" + `undefined` row | [details](#c14) · `cases/TC-75` |
+| 15 | Markup in a clerk's `reason` field | escaped text | ❌ executes as script | [details](#c15) · `cases/TC-80` |
+| 17 | Modal rejects a non-numeric amount | the clerk sees the error | ❌ message painted under the modal | [details](#c17) · `cases/TC-72` |
+| 12 | The shutoff button | a confirmation step | ❌ one click, irreversible | [details](#c12) · `cases/TC-70` |
+| 21 | Any page load | clean console | ❌ TypeError on every load | [details](#c21) · `cases/TC-76` |
+| — | Healthy account detail | renders correctly | ✅ | [04-detail-acc1188-healthy.png](04-detail-acc1188-healthy.png) |
+| — | `GET` a nonexistent account | 404, no internals | ✅ | `cases/TC-50` |
 
-### <a id="tc-23"></a>TC-23 / <a id="tc-24"></a>TC-24 — stored payloads execute in the console `[S1]`
+### <a id="c14"></a>Case 14 — the empty state renders the word `undefined` three times
 
-**Attacks:** stored data is not executable · **Oracle:** the payload ran — `document.title` changed and a global was set
-**Fixtures:** `ACC-9002` (holder name contains a payload in the seed data), `ACC-7310` (payload typed into the Reason field)
+`ACC-7310` is a new connection with no readings — a state the seed data creates deliberately.
 
-**What should happen.** A holder name and a reason are data. They render as text.
+![ACC-7310 detail: Consumption reads "null m3" and the meter readings table has a single row of undefined, undefined, undefined](02-detail-acc7310-no-readings.png)
 
-**What happened.** Both executed. The accounts list needed no interaction at all — opening the console was enough, and the browser tab title changed before I clicked anything:
+**Why it happens.** Two separate spots. `consumption()` returns Python `None` for fewer than two readings, which serialises to `null`, and `app.js:58` concatenates it straight into the tile — `b.consumption_m3 + ' m3'`. And `app.js:71` reaches for an empty-state placeholder by substituting an empty object: `var reads = d.readings.length ? d.readings : [{}];` — then renders `r.read_on`, `r.meter_m3` and `r.source` off it, each `undefined`.
 
-```
-mcp__chrome-devtools__new_page http://localhost:8413/
--> 4: AQ-XSS (http://localhost:8413/) [selected]
-```
+**What it costs.** Cosmetic in isolation, but it is on the billing screen of a real account and it makes the genuinely-important zero states (Case 1's `$0.00`) harder to distinguish from rendering noise.
 
-<details><summary>computed page state (before) — the payload is a live DOM element, not text</summary>
+### <a id="c15"></a>Case 15 — text a clerk types runs as script in other clerks' browsers
 
-```js
-{
-  "documentTitle": "AQ-XSS",
-  "xssExecuted": true,
-  "injectedImgTags": 1,
-  "holderCellHTML": "Moveis <img src=\"x\" onerror=\"document.title='AQ-XSS'\">",
-  "chartletDefined": "undefined",
-  "acc4471Row": ["ACC-4471","Nordheim Textiles","INDUSTRIAL","4313 m3","$0.00 — paid in full","active"],
-  "acc7310Row": ["ACC-7310","Ivo Radulescu","DOMESTIC","null m3","$4.00","active"]
-}
-```
-</details>
+**What should happen.** `reason`, `actor` and `holder_name` are data and should be escaped on render.
 
-![the accounts list on the original build: ACC-4471 green "paid in full" on 4313 m3, ACC-7310 "null m3", ACC-9002's holder rendered as a broken image where the payload injected an img element](01-accounts-list.png)
+**What happened.** I posted an adjustment whose `reason` contained an `<img onerror>` payload through the ordinary endpoint, then opened the account.
 
-TC-24 is the more serious variant, because it needs no seeded fixture — any clerk can plant it, and it then runs for every clerk who later opens that account. Typed into the Reason field and submitted through the form:
-
-<details><summary>computed page state after submitting the payload through the Reason input (before)</summary>
-
-```js
-{
-  "documentTitle": "AQ-XSS-VIA-REASON",
-  "pwnedFlagSet": true,
-  "ledgerRowHTML": "<td>adjustment</td><td>$5.00</td><td>goodwill <img src=\"y\" onerror=\"document.title='AQ-XSS-VIA-REASON';window.__aqPwned=true\"></td><td>console</td><td>2026-08-21T13:30:20Z</td>",
-  "imgTagsInLedger": 1,
-  "balanceTile": "Balance due$9.00"
-}
-```
-</details>
-
-![the ledger row rendering the injected payload as a live broken-image element after submitting it through the Reason field](04-stored-xss-via-reason-field.png)
-
-**Direct read** — the payload persisted, so it runs again on every future page load:
-
-```
-$ sqlite3 aqueduct.db "SELECT reason FROM adjustments WHERE account_id='ACC-7310';"
-goodwill <img src=y onerror="document.title='AQ-XSS-VIA-REASON';window.__aqPwned=true">
-```
-
-**Why it happens.** `renderList`, `renderDetail` and `ledgerRow` all built markup by string concatenation into `innerHTML`, interpolating `holder_name`, `reason`, `actor`, `read_on` and `source` — every one of which is operator-supplied.
-
-**What it costs.** Script execution in the browser of any clerk viewing the account, in a console that performs irreversible actions with no re-authentication. A payload in a reason field can silently issue a credit note or a disconnection notice as the clerk viewing it, and the README notes there is no login, so there is nothing to step up to. The stored nature is what makes it serious: plant once, fires for everyone, indefinitely.
-
-**The fix.** Rendering is structural now, not textual. A `cell()` helper creates each `<td>` and assigns `textContent`; a `row()` helper assembles them; `tile()` does the same for the billing tiles; the detail title uses `textContent`. No untrusted value reaches `innerHTML`.
-
-The positive control is what makes this verifiable: the payloads are still in the data, so the check would fail if the fix were absent.
-
-<details><summary>computed page state (after)</summary>
-
-```js
-{
-  "buildMarker_hasCellHelper": true,
-  "documentTitle": "Aqueduct — Billing Console",
-  "xssExecuted": false,
-  "injectedImgTags": 0,
-  "holderCellHTML": "Moveis &lt;img src=x onerror=\"document.title='AQ-XSS'\"&gt;",
-  "holderCellText": "Moveis <img src=x onerror=\"document.title='AQ-XSS'\">"
-}
-```
-```js
-// reason-field payload, re-submitted after the fix
-{
-  "documentTitle": "Aqueduct — Billing Console",
-  "pwnedFlagSet": false,
-  "xssExecuted": false,
-  "imgTagsInLedger": 0,
-  "ledgerRowHTML": "<td>adjustment</td><td>$5.00</td><td>goodwill &lt;img src=y onerror=\"...\"&gt;</td>...",
-  "balanceTile": "Balance due$9.00"
-}
-```
-</details>
-
-![the fixed accounts list: the payload displayed as literal text in ACC-9002's holder cell, ACC-4471 amber "cannot bill", ACC-7310 "no reading yet"](12-accounts-list-FIXED.png)
-
-**Fails if:** any operator-supplied value produces an element in the DOM, or `document.title` changes on load. **Reproduced:** 2/2 each.
-
-### <a id="tc-26"></a>TC-26 — the unbillable account tells the clerk it is settled `[S1]`
-
-This is [TC-01](#tc-01) as the clerk experiences it, and the screen is worse than the API response. Before and after, side by side:
-
-![before: ACC-4471 detail showing Rate $0.00/m3, Charges $0.00, and Balance due "$0.00 — paid in full" in green, above three real meter readings totalling 4313 m3 consumed](02-acc4471-industrial-zero-bill.png)
-
-![after: the same account showing Rate "no tariff on file", Charges "—", Balance due "cannot bill" in amber, and a red line naming the service class and what has to happen](13-acc4471-cannot-bill-FIXED.png)
-
-**Why it happens.** `balance_due <= 0` drove the label, so any zero — including a zero that means "we have no rate" — took the `ok` class and the words "paid in full". The version of this in the list view is the same expression.
-
-**What it costs.** The console does not merely omit the charge; it actively asserts the account is settled, in green. A clerk auditing overdue accounts has no reason to look at it, which is how a missing tariff survives from one weekly export to the next.
-
-**The fix.** `balanceLabel` and `balanceClass` branch on `billing_status` first, and "paid in full" is now reserved for an exact zero, with a negative balance labelled "in credit" instead of also claiming paid.
-
-### <a id="tc-25"></a>TC-25 / <a id="tc-27"></a>TC-27 / <a id="tc-29"></a>TC-29 — the states that hide regressions
-
-<details><summary>TC-25 — an account with no readings rendered "undefined"</summary>
-
-`ACC-7310` is a new connection with no readings. The consumption tile read `null m3` and the readings table rendered a phantom row, from `var reads = d.readings.length ? d.readings : [{}]` — a placeholder object whose every field is `undefined`.
-</details>
-
-![before: ACC-7310 showing "null m3" and a readings row of undefined / undefined / undefined](03-acc7310-empty-state-undefined.png)
-
-![after: "no reading yet" in the tile and "No meter readings recorded for this account yet." in the table](14-acc7310-empty-state-FIXED.png)
-
-<details><summary>TC-27 — a clean screen over a dirty console, on every single load</summary>
-
-```
-[error] Uncaught TypeError: Cannot read properties of undefined (reading 'render')
-[error] Failed to load resource: the server responded with a status of 404 (Not Found) [2 times]
-```
-```js
-{ "chartletDefined": "undefined", "sparklineInnerHTML": "", "sparklineRect": { "w": 1044, "h": 0 } }
-```
-`app.js:20` calls `window.Chartlet.render`, but nothing loads Chartlet — no script tag in `index.html`, no such file in `static/`. The sparkline was dead on arrival and threw on every page load. It sat inside `setTimeout`, so the table still rendered, which is exactly why nobody noticed: the screen looked fine.
-
-After the fix, the only console entry left across the whole run is a browser-initiated `/favicon.ico` 404 — the app does not serve one, and that is not a defect.
-</details>
-
-<details><summary>TC-29 — the two money forms validated differently</summary>
-
-`12,50` — a comma decimal, entirely plausible in a deployment whose fixture addresses are Portuguese — went to the server raw, which did `float("12,50")` and returned 500. The clerk saw a generic "Could not apply adjustment".
-
-```
-POST http://localhost:8413/api/adjustments [500]
-```
-
-The credit-note modal *did* validate, with `isNaN(Number(raw))`, and said "Amount must be a number". Same application, two money forms, one guarded and one not — that asymmetry is the oracle, not my opinion about comma decimals.
-
-Nothing was written on the failed attempt, on either build:
-```
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM adjustments WHERE account_id='ACC-7310';"
-1        # only the earlier successful 5.00 row
-```
-</details>
-
-![the adjustment form holding "12,50" after the request 500'd, with the balance unchanged at $9.00](05-adjustment-comma-decimal-500.png)
-
-### <a id="tc-28"></a>TC-28 — the irreversible action was the only one with no confirmation `[S1]`
-
-**Oracle:** internal inconsistency, and it is stark. Issuing a credit note opened a modal carrying its own warning — "Credit notes cannot be voided from the console." Dispatching a crew to physically cut off a household's water, which the README says is not reversible from the console, asked nothing at all.
-
-**What happened.** One click on "Issue shutoff notice" posted `stage: "final"` and the account went from `active` to `shutoff_pending` immediately.
-
-![one click, no dialog: ACC-7310 now shutoff_pending with a final notice on the ledger](08-shutoff-one-click-no-confirm.png)
-
-```
-POST http://localhost:8413/api/shutoff [201]
+```bash
+curl -sS -X POST -H 'Content-Type: application/json' \
+  -d '{"account_id":"ACC-1188","amount":10,"reason":"goodwill <img src=x onerror=\"document.title=(document.title+&apos;|LEDGER-XSS&apos;)\">","actor":"clerk-a"}' \
+  http://127.0.0.1:8414/api/adjustments
 ```
 ```
-$ sqlite3 aqueduct.db "SELECT id,actor,stage,issued_at FROM shutoff_notices WHERE account_id='ACC-7310';"
-1|console|final|2026-08-21T13:32:03Z
-$ sqlite3 aqueduct.db "SELECT status FROM accounts WHERE id='ACC-7310';"
-shutoff_pending
+HTTP 201
+$ sqlite3 aqueduct.db "SELECT id,reason,actor FROM adjustments;"
+1|goodwill <img src=x onerror="document.title=(document.title+'|LEDGER-XSS')">|clerk-a
 ```
 
-Worth noting what that sequence was: a brand-new account, opened three weeks earlier, with no meter readings, no prior notices, and a balance of $9.00 — and the console dispatched a crew on one click.
+Measured in the page after loading `/account/ACC-1188`:
 
-**Why it happens.** `issueShutoff` hardcoded `stage: 'final'` and posted on click. There was no stage selector, so the only notice the UI could issue was the irreversible one, and no confirmation step.
-
-**The fix.** A stage selector defaulting to `reminder`, and for `final` a confirmation naming the account and the consequence. Dismissing it writes nothing:
-
-```
-notices for ACC-7310 after DISMISSING the confirm (expect 0): 0
-status (expect active): active
+```json
+{ "documentTitle": "Aqueduct — Billing Console|LEDGER-XSS",
+  "scriptExecutedFromLedgerReason": true,
+  "injectedElementsInLedger": 1,
+  "ledgerReasonCellHTML": "goodwill <img src=\"x\" onerror=\"document.title=(document.title+'|LEDGER-XSS')\">" }
 ```
 
-Accepting it then still meets the server's ordering rule, and the clerk now sees why:
+![The ACC-1188 ledger rendering the injected adjustment; the browser tab title has been rewritten by the payload](11-stored-xss-via-ledger-reason.png)
 
-![after accepting the confirmation, the server's actual reason shown to the clerk: "cannot issue final for ACC-7310: no reminder or warning notice on file yet"](15-shutoff-final-refused-toast-FIXED.png)
+The same thing happens from account data with no clerk involved at all — `ACC-9002`'s holder name in the seed carries a payload, and simply opening the accounts list sets `document.title` to `AQ-XSS`:
 
-### <a id="tc-30"></a>TC-30 — a mistyped account id gave the clerk a working shutoff button `[S2]`
-
-**What happened.** `/account/ACC-DOES-NOT-EXIST` rendered no title and no billing, but the full Actions panel — including the danger-styled shutoff button — was present and clickable.
-
-![before: no account name, no billing, but Apply adjustment / Issue credit note / Issue shutoff notice all rendered and live](10-unknown-account-blank-screen.png)
-
-```
-[error] Uncaught (in promise)      <- renderDetail() ran on {"error":"no such account"}
+```json
+{ "documentTitle": "AQ-XSS", "xssFired": true,
+  "imgTagsInjectedIntoTable": 1,
+  "holderCellHTML": "Moveis <img src=\"x\" onerror=\"document.title='AQ-XSS'\">" }
 ```
 
-**Why it happens.** `load()` passed the parsed body straight to `renderDetail` with no status check, so `d.account.id` threw partway through — after the section had been unhidden and before the fields were filled. The static markup, including the action buttons, was already in the DOM. Paired with [TC-11](#tc-11), where shutoff on a nonexistent account returned `201`, those buttons worked.
+**Why it happens.** Four sinks, all the same pattern — string concatenation into `innerHTML` with no escaping:
 
-**The fix.** `renderDetail` checks for an account first and shows a not-found state with the action panel hidden; `load()` has a `.catch()`.
+- `renderList` (`app.js:30-38`) — `id`, `holder_name`, `service_class`, `status`
+- `renderDetail` (`app.js:49`) — `d-title` from `holder_name`
+- `renderDetail` (`app.js:74`) — readings `read_on` and `source`
+- `ledgerRow` (`app.js:93`) — `reason` and `actor`
 
-![after: "Unknown account" / "no such account", and no action panel](16-unknown-account-FIXED.png)
+There is no Content-Security-Policy header either, so nothing mitigates it in depth.
 
-### <a id="tc-19a"></a>TC-19a — the Reports link, a documented gap
+**What it costs.** With no login (a documented gap) the practical exposure is anyone who can reach the office network, and the payload persists in the database and fires for every clerk who opens the affected screen. Given the endpoints in this same console dispatch disconnection crews and write irreversible credit notes, script running in a clerk's session can drive those actions as that clerk. The `reason` sink is the one that matters most: it is a free-text field clerks are expected to type into, so this is reachable without touching the database.
 
-The README says Reports is "not built yet, the nav link is a placeholder", so this is reported as presentation of a known gap rather than as a surprise. Clicking it drops the clerk out of the application onto a raw JSON body:
+**Fails if:** any value from the API is interpolated into `innerHTML` without escaping. **Reproduced:** 2/2 for both the `reason` and the `holder_name` path.
 
-![the Reports nav link showing raw JSON {"error": "no route", "path": "/reports"} in the browser's JSON viewer](11-reports-placeholder-raw-json.png)
+### <a id="c17"></a>Case 17 — the modal's own error message is painted underneath the modal
 
-Not fixed — building the screen is outside a QA pass. Flagged because a placeholder that dumps JSON reads as a broken application to a clerk, and a disabled link or an "in progress" panel would cost very little.
+**What should happen.** Typing a non-numeric amount into the credit-note modal and confirming should tell the clerk why nothing happened.
+
+**What happened.** The message is created, is not hidden, has correct text — and is behind the modal's scrim, so the clerk sees nothing at all and the modal just sits there.
+
+I drove the modal, entered `abc`, and clicked confirm. The toast auto-hides after 4s, faster than a tool round-trip, so I froze that one timer to photograph the state; nothing about layout or stacking was altered.
+
+```json
+{ "toastTextInDOM": "Amount must be a number",
+  "toastVisibleAttrWise": true,
+  "toastRect": { "x": 620, "y": 833, "w": 201, "h": 43 },
+  "toastZIndex": "5",
+  "modalStillOpen": true,
+  "modalZIndex": "1000",
+  "elementActuallyPaintedAtToastCentre": "modal",
+  "userCanSeeToast": false }
+```
+
+![The credit note modal with "abc" in the Amount field; the red "Amount must be a number" message is visibly dimmed beneath the modal's dark scrim](06-modal-validation-toast-buried.png)
+
+**Why it happens.** `style.css:102` gives `.toast` `z-index: 5`; `style.css:87` gives `.modal` `z-index: 1000`. The toast was authored against the page and is then shown on top of a dialog that outranks it. `confirmCreditNote` (`app.js:127-130`) deliberately leaves the modal open on the client-side rejection path — the one branch where the toast is the only feedback there is.
+
+Note this passes any DOM assertion: the element exists, `hidden` is `false`, the text is right. `document.elementFromPoint` at the toast's own centre returns the modal, which is what proves the user cannot see it.
+
+**What it costs.** The clerk clicks "Issue credit note", nothing visibly happens, and the natural response is to click again — against an endpoint with no duplicate protection (Case 11) on an irreversible action, as soon as they correct the amount.
+
+### <a id="c12"></a>Case 12 — the confirmation gates are on the wrong actions
+
+The reversible-ish credit note gets a modal and a red warning. The irreversible crew dispatch gets a single click.
+
+Before — `ACC-1188`, `active`, no notices:
+
+![ACC-1188 detail before: status active, no ledger entries](04-detail-acc1188-healthy.png)
+
+After one click on "Issue shutoff notice", with no dialog in between:
+
+![ACC-1188 detail after: status shutoff_pending, a final-stage shutoff notice in the ledger](09-shutoff-after-one-click.png)
+
+```
+# before
+ACC-1188|active
+0
+# after one click
+ACC-1188|shutoff_pending
+1|ACC-1188|console|final|2026-08-21T16:57:36Z
+```
+
+`issueShutoff` (`app.js:144-152`) posts `{stage: 'final'}` unconditionally — there is no stage selector in the UI, so `reminder` and `warning` cannot be issued from the console at all. The only stage a clerk can send is the one the README reserves for supervisors.
+
+### <a id="c21"></a>Case 21 — a TypeError on every page load
+
+```
+Uncaught TypeError: Cannot read properties of undefined (reading 'render')
+```
+
+`initSparkline` (`app.js:18-21`) calls `window.Chartlet.render(...)`. Nothing defines `Chartlet` — no script tag in `index.html`, no bundle — and `evaluate_script` confirms `typeof window.Chartlet === "undefined"`. The `.sparkline` element is styled `height: 0`, so the feature is invisible either way. It fires on every navigation of this run. Low severity on its own; the cost is that a permanently dirty console is where a real error goes unnoticed, which is exactly what happened with Case 10's `SyntaxError`.
 
 ---
 
-## Flow 5 — does the fix survive the data the old build already wrote
+## Flow 5 — Field use: the console on a phone
 
-The fixes stop new bad data. They do not remove what the original build could already have written, and any real deployment would have some. So I inserted a non-finite amount straight into the database with `sqlite3`, as a legacy row, and re-read every surface.
+The brief says clerks use this on phones out in the field. Both defects here are in `style.css`.
 
-### <a id="tc-31"></a>TC-31 — containment held on the list, but the detail page still 500'd on the one account needing repair
+| # | Case | Expected | Result | Evidence |
+|---|------|----------|--------|----------|
+| 18 | Accounts list at phone width | balance visible, table scrolls in place | ❌ balance and status off-screen | [details](#c18) · `cases/TC-73` |
+| 19 | Credit-note modal at phone width | usable | ❌ confirm button off-screen, no way to dismiss | [details](#c19) · `cases/TC-74` |
 
-**First result.** The list endpoint stayed valid JSON and isolated the affected account, which is the containment working:
+### <a id="c18"></a>Case 18 — the balance due is off the right edge of the phone
 
-```
-$ node -e 'JSON.parse(...)'
-JSON.parse ok, accounts: 6
-   ACC-1188 balance_due= 51.57 billing_status= ok
-   ACC-2043 balance_due= null  billing_status= blocked      <- the poisoned row, contained
-   ACC-4471 balance_due= null  billing_status= blocked
-   ACC-5520 balance_due= 107.85 billing_status= ok
-   ACC-7310 balance_due= 9     billing_status= ok
-   ACC-9002 balance_due= 109.9 billing_status= ok
-```
+![The accounts list at 390px: only Account, Holder and Class columns are on screen; Consumption, Balance due and Status are cut off](07-accounts-list-mobile-390.png)
 
-**But** the detail page for that account returned 500 — `balance()` reported `blocked` correctly, while the raw ledger rows in the same payload still carried `inf`, so serialisation failed:
-
-```
-$ curl -sS -w '\nHTTP %{http_code}\n' http://localhost:8413/api/accounts/ACC-2043
-{ "error": "server error" }
-HTTP 500
-
-# server stderr:
-non-serialisable payload for /api/accounts/ACC-2043: {... 'adjustments': [{'id': 2, 'amount': inf, 'reason': 'legacy poisoned row', ...}] ...}
-```
-
-That is the wrong failure in the wrong place: the clerk could not open the single account that needed manual correction. Fixed with `safe_row()`, which nulls non-finite floats on the way out.
-
-<details><summary>after the second fix</summary>
+Measured two ways, because the symptom presents differently in each:
 
 ```json
-{
-  "adjustments": [
-    { "id": 2, "account_id": "ACC-2043", "amount": null, "reason": "legacy poisoned row", "actor": "old-build", "created_at": "2026-08-01T00:00:00Z" }
-  ],
-  "billing": {
-    "rate_per_m3": 1.42, "consumption_m3": 15.5, "charges": null,
-    "adjustments": null, "credits": 0, "balance_due": null,
-    "billing_status": "blocked",
-    "billing_error": "ledger contains a non-finite amount; this account needs manual correction"
-  }
-}
+// window narrowed to 500px (Chrome's minimum), desktop mode
+{ "viewportWidth": 500, "documentScrollWidth": 748,
+  "pageScrollsHorizontally": true, "horizontalOverflowPx": 248,
+  "tableCssMinWidth": "720px", "tableParentOverflowX": "visible",
+  "balanceDueCell": { "right": 669, "visible": false },
+  "statusCell": { "right": 748, "visible": false } }
+
+// 390x844 mobile emulation
+{ "viewportWidth": 748, "tableRenderedWidth": 720 }   // layout viewport forced to 748
 ```
-</details>
 
-![the account holding a legacy poisoned row: the offending ledger entry visible with amount "—", balance "cannot bill", and a message saying the account needs manual correction](17-legacy-poisoned-row-contained-FIXED.png)
+**Why it happens.** `style.css:43-51` puts `min-width: 720px` on `table` with no scroll container — the parent is a bare `<section>` with `overflow-x: visible`. So the table cannot shrink and cannot scroll inside its own box; the whole page has to scroll instead, or the browser expands the layout viewport to 748px and renders everything at roughly half scale.
 
-The clerk can now see the bad row, see why the account cannot be billed, and correct it.
+**What it costs.** Balance due is the number the clerk is standing at the property to look up, and it is the one that is off-screen. The status column — including `shutoff_pending` — goes with it.
+
+### <a id="c19"></a>Case 19 — the credit-note modal cannot be completed or dismissed on a phone
+
+![The credit note modal at 390px: the card is pushed off the right edge, Amount and Reason inputs are clipped, and the buttons are not on screen](08-credit-note-modal-mobile-390.png)
+
+```json
+{ "physicalScreenWidthCss": 390, "layoutViewportWidth": 748,
+  "amountField":   { "left": 208, "right": 540, "onScreen": false },
+  "reasonField":   { "left": 208, "right": 540, "onScreen": false },
+  "cancelButton":  { "left": 313, "right": 390, "onScreen": true },
+  "confirmButton": { "left": 400, "right": 540, "onScreen": false },
+  "backdropClickCloses": false,
+  "escapeKeyCloses": false }
+```
+
+**Why it happens.** `style.css:89-91` fixes the card at `width: 380px; min-width: 380px`. Because Case 18 inflates the layout viewport to 748px, the flex-centred card lands centred on 374px — off to the right of a 390px screen. `app.js` registers no backdrop-click and no `keydown` handler, so once it is open the only exit is reloading the page.
+
+**What it costs.** A field clerk cannot issue a credit note, and having opened the dialog cannot get back to the account without reloading.
 
 ---
 
 ## Durable state
 
-Every claim above about persistence rests on a direct read; the queries and their literal output are inline with each case. The negatives matter as much as the positives, so collected here:
+Every persistence claim above, as the query and its literal output. All reads are against `aqueduct.db` in the app directory.
+
+<details><summary>The tariff gap behind Case 1</summary>
 
 ```
-# after the fixes, all the refused requests wrote nothing
-$ sqlite3 aqueduct.db "SELECT 'readings',    COUNT(*) FROM readings     WHERE account_id='GHOST-1'
-                 UNION SELECT 'adjustments', COUNT(*) FROM adjustments  WHERE account_id='GHOST-1'
-                 UNION SELECT 'credit_notes',COUNT(*) FROM credit_notes WHERE account_id='GHOST-1';"
-readings|0
-adjustments|0
-credit_notes|0
+$ sqlite3 aqueduct.db "SELECT * FROM tariffs;"
+DOMESTIC|1.42|4.0
+COMMERCIAL|2.05|11.5
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM tariffs WHERE service_class='INDUSTRIAL';"
+0
+$ sqlite3 aqueduct.db "SELECT DISTINCT service_class FROM accounts;"
+DOMESTIC
+INDUSTRIAL
+COMMERCIAL
+```
+One of the three service classes in use has no price.
+</details>
 
-# no notice was written by any refused shutoff, and no stray rows anywhere
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM shutoff_notices;"   0
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM adjustments;"       0
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM credit_notes;"      0
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM readings;"          15   (the seeded set, untouched)
+<details><summary>Shutoff notices written during the run, including the phantom account</summary>
 
-# the failed 12,50 adjustment wrote nothing on either build -- the error preceded the INSERT
-$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM adjustments WHERE account_id='ACC-7310';"
-1        # only the successful 5.00 row
+```
+$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage FROM shutoff_notices ORDER BY id;"
+1|ACC-2043|clerk-nobody|final
+2|ACC-5520|clerk-nobody|final
+3|ACC-5520|x|banana
+4|ACC-DOES-NOT-EXIST|x|final
+$ sqlite3 aqueduct.db "SELECT id,status FROM accounts ORDER BY id;"
+ACC-1188|active
+ACC-2043|shutoff_pending
+ACC-4471|active
+ACC-5520|shutoff_pending
+ACC-7310|active
+ACC-9002|active
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM accounts WHERE id='ACC-DOES-NOT-EXIST';"
+0
+```
+</details>
 
-# audit_log, per the README's known gaps, is written by nothing -- confirmed for
-# every action driven in this run, including the irreversible ones
+<details><summary>Non-finite and duplicate money rows</summary>
+
+```
+$ sqlite3 aqueduct.db "SELECT id,account_id,amount,reason FROM credit_notes WHERE account_id='ACC-1188';"
+1|ACC-1188|Inf|overflow probe
+$ sqlite3 aqueduct.db "SELECT id,amount,reason,created_at FROM credit_notes;"
+4|40.0|goodwill CN-77|2026-08-21T16:52:01Z
+5|40.0|goodwill CN-77|2026-08-21T16:52:01Z
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM shutoff_notices WHERE account_id='ACC-1188' AND stage='final';"
+10
+```
+</details>
+
+<details><summary>Orphan rows — the negatives, as queries that returned something they should not have</summary>
+
+```
+$ sqlite3 aqueduct.db "SELECT r.id,r.account_id FROM readings r LEFT JOIN accounts a ON a.id=r.account_id WHERE a.id IS NULL;"
+17|ACC-NOPE-2
+```
+</details>
+
+<details><summary>audit_log — the query that came back empty, and why that is not a finding</summary>
+
+```
 $ sqlite3 aqueduct.db "SELECT COUNT(*) FROM audit_log;"
 0
 ```
+Nothing was written to `audit_log` by any of the 32 cases, including the ten crew dispatches. The README lists this as a known gap, so it is not filed as a defect — it is noted below as a question, because the gap interacts badly with Flow 2.
+</details>
 
-Final state of the fixture, restored clean at the end of the run:
+<details><summary>Fixture state at end of run</summary>
 
 ```
-$ curl -sS http://localhost:8413/api/accounts
-ACC-1188 ok      51.57
-ACC-2043 ok      26.01
-ACC-4471 blocked None
-ACC-5520 ok      107.85
-ACC-7310 ok      4.0
-ACC-9002 ok      109.9
+$ python3 seed.py
+seeded aqueduct.db: 6 accounts, 15 readings
+$ sqlite3 aqueduct.db "SELECT id,status FROM accounts;"
+ACC-1188|active
+ACC-2043|active
+ACC-4471|active
+ACC-5520|active
+ACC-7310|active
+ACC-9002|active
+$ sqlite3 aqueduct.db "SELECT (SELECT COUNT(*) FROM adjustments),(SELECT COUNT(*) FROM credit_notes),(SELECT COUNT(*) FROM shutoff_notices),(SELECT COUNT(*) FROM readings r LEFT JOIN accounts a ON a.id=r.account_id WHERE a.id IS NULL);"
+0|0|0|0
 ```
-
-`ACC-4471` remaining `blocked` is correct and is the point: the fixture deliberately omits the INDUSTRIAL tariff, and `seed.py` says so in a comment. I did not add the missing row — that would have hidden the defect rather than fixed it.
+Everything the run wrote has been cleared.
+</details>
 
 ## Screens driven
 
-All captures at viewport 1280×900×1, in capture order. Emulation was cleared at the end of the run. Screenshot writes into the run directory were refused by the automation server's workspace-root policy, so each capture was written to a permitted path and moved into this directory immediately; all 17 are present here.
+Twelve captures, in the order they happened. Screenshot writes into the run directory were refused by the automation server — its workspace root is `/Users/<you>`, not the app tree — so each was captured to a staging directory under that root and moved here immediately; the staging directory has been removed.
 
 | # | Image | What it shows |
-|---|-------|---------------|
-| 01 | `01-accounts-list.png` | list view, original build: XSS fired, "paid in full" on 4313 m³, "null m3" |
-| 02 | `02-acc4471-industrial-zero-bill.png` | the unbillable account priced at $0.00 and called settled |
-| 03 | `03-acc7310-empty-state-undefined.png` | empty state rendering "undefined" |
-| 04 | `04-stored-xss-via-reason-field.png` | payload typed into Reason, live in the ledger |
-| 05 | `05-adjustment-comma-decimal-500.png` | comma decimal → 500, balance unchanged |
-| 06 | `06-credit-note-modal-negative-before.png` | the modal accepting −500 under its own no-void warning |
-| 07 | `07-credit-note-negative-after-balance-up.png` | balance risen $9.00 → $509.00 |
-| 08 | `08-shutoff-one-click-no-confirm.png` | crew dispatched on one click, no dialog |
-| 09 | `09-console-dead-after-one-adjustment.png` | all six accounts gone after one bad amount |
-| 10 | `10-unknown-account-blank-screen.png` | live shutoff button on a nonexistent account |
-| 11 | `11-reports-placeholder-raw-json.png` | the documented placeholder, as raw JSON |
-| 12 | `12-accounts-list-FIXED.png` | list view fixed: payload as text, "cannot bill", "no reading yet" |
-| 13 | `13-acc4471-cannot-bill-FIXED.png` | unbillable account flagged with its reason |
-| 14 | `14-acc7310-empty-state-FIXED.png` | proper empty state |
-| 15 | `15-shutoff-final-refused-toast-FIXED.png` | the server's real reason shown to the clerk |
-| 16 | `16-unknown-account-FIXED.png` | not-found state, action panel hidden |
-| 17 | `17-legacy-poisoned-row-contained-FIXED.png` | pre-existing bad row contained and correctable |
+|---|---|---|
+| 01 | [01-accounts-list-desktop.png](01-accounts-list-desktop.png) | Accounts list, healthy, 1440×900. ACC-4471 green "paid in full" beside 4313 m3; ACC-7310 "null m3"; ACC-9002's broken-image icon is the XSS payload |
+| 02 | [02-detail-acc7310-no-readings.png](02-detail-acc7310-no-readings.png) | Empty-readings state: "null m3" and the `undefined` row |
+| 03 | [03-detail-acc4471-industrial-zero-bill.png](03-detail-acc4471-industrial-zero-bill.png) | Case 1 on the detail screen: "RATE $0.00/m3", "$0.00 — paid in full", three valid readings below |
+| 04 | [04-detail-acc1188-healthy.png](04-detail-acc1188-healthy.png) | A correctly-priced account — the working case, and the "before" for Case 12 |
+| 05 | [05-credit-note-modal-desktop.png](05-credit-note-modal-desktop.png) | Credit-note modal, desktop, default state |
+| 06 | [06-modal-validation-toast-buried.png](06-modal-validation-toast-buried.png) | Case 17: the error message dimmed beneath the scrim |
+| 07 | [07-accounts-list-mobile-390.png](07-accounts-list-mobile-390.png) | Case 18: balance and status off-screen at 390px |
+| 08 | [08-credit-note-modal-mobile-390.png](08-credit-note-modal-mobile-390.png) | Case 19: modal pushed off the right edge |
+| 09 | [09-shutoff-after-one-click.png](09-shutoff-after-one-click.png) | Case 12 "after": `shutoff_pending`, final notice in the ledger |
+| 10 | [10-accounts-list-dead-after-overflow.png](10-accounts-list-dead-after-overflow.png) | Case 10: the home screen with zero rows |
+| 11 | [11-stored-xss-via-ledger-reason.png](11-stored-xss-via-ledger-reason.png) | Case 15: injected ledger row, tab title rewritten |
+| 12 | [12-meter-swap-negative-period.png](12-meter-swap-negative-period.png) | The signed-off negative period, carried correctly — and labelled "paid in full" |
 
 ## Console and network
 
-Full capture in `console-list-view.txt` and `console-network-ui-run.txt`. Summary:
+The console was pulled after each meaningful step rather than once at the end.
 
-**Original build** — every page load threw `Uncaught TypeError: Cannot read properties of undefined (reading 'render')`. The poisoned list additionally threw `Uncaught (in promise) SyntaxError: ... is not valid JSON`, and the unknown-account page threw a bare `Uncaught (in promise)`. Network showed the expected `201`s plus a `500` on the comma-decimal adjustment.
+**Every page load, on every screen:**
+```
+[error] Uncaught TypeError: Cannot read properties of undefined (reading 'render')
+```
 
-**Fixed build** — the only console entry across the run is a browser-initiated `/favicon.ico` 404, which the app does not serve. Network: `GET /` `200`, `style.css` `200`, `app.js` `200`, `/api/accounts` `200`.
+**After the overflow credit note, on the accounts list:**
+```
+[error] Uncaught TypeError: Cannot read properties of undefined (reading 'render')
+[error] Uncaught (in promise) SyntaxError: No number after minus sign in JSON at position 925 (line 36 column 23)
+```
 
-Where I asserted state from the DOM rather than from a rendered capture — `document.title`, `window.__aqPwned`, `innerHTML`, element counts — those verify that the string or element existed, not that a human saw it. Each is paired with a screenshot for the visual claim.
+Network on that same load — note every request succeeded, which is why the blank screen has no server-side signal at all:
+```
+GET http://localhost:8414/                  [200]
+GET http://localhost:8414/static/style.css  [200]
+GET http://localhost:8414/static/app.js     [200]
+GET http://localhost:8414/api/accounts      [200]   <- 200, and unparseable
+```
+
+A `404` also appears on the initial list load (favicon), which is noise.
+
+Two claims in this report were measured from the DOM rather than read off a rendered capture, and are labelled as such where they appear: the stacking check in Case 17 (`document.elementFromPoint`) and the geometry in Cases 18 and 19 (`getBoundingClientRect`). Both are paired with a screenshot showing the same thing.
 
 ## Checks outside the run
 
-```
-$ python3 -c "import ast; ast.parse(open('server.py').read())"
-server.py parses
-$ node --check static/app.js
-app.js parses
-$ python3 seed.py
-seeded aqueduct.db: 6 accounts, 15 readings
-```
-
-There is no test suite in this project, so there was no baseline to run before editing and none to re-run after. That is itself the largest gap in the next steps below.
+There is no test suite, no linter config and no build in this project — `find` returns only `server.py`, `seed.py`, `README.md` and three static files. Nothing could be run beyond the campaign itself. The server's own stderr log is at `server.log`.
 
 ## Coverage — what this run reached
 
 | Interesting state | Reached? | Evidence |
 |---|---|---|
-| Missing tariff row for a service class | **yes** | TC-01, TC-26 |
-| All three disconnection stages, in order and out of order | **yes** | TC-06, TC-07, TC-09, TC-10 |
-| Non-finite and non-numeric amounts on every money endpoint | **yes** | TC-04a, TC-04b, TC-14 |
-| Malformed / missing / extra / wrong-type request bodies | **yes** | TC-12–TC-15, TC-18 |
-| Writes against a nonexistent account, all four endpoints | **yes** | TC-11, TC-16 |
-| 12 concurrent writes to one account | **yes** | TC-21 |
-| Stored XSS, seeded and clerk-supplied | **yes** | TC-23, TC-24 |
-| Empty, error, forbidden and success UI states | **yes** | TC-25, TC-28, TC-30 |
-| Pre-existing bad data from the old build | **yes** | TC-31 |
-| The signed-off meter-swap path, before and after | **yes** | TC-02 |
-| **A genuinely unauthorised actor** | **no** | there is no authentication to defeat; `actor` and `supervisor` are self-asserted, so "unauthorised" is not an observable state |
-| **Two clerks racing the same shutoff sequence** | **no** | the stage-order check is a read-then-write with no transaction; not exercised |
-| **A real weekly tariff export** | **no** | no import path exists in this codebase; the missing row was tested, the refresh that causes it was not |
-| **Behaviour at production data volume** | **no** | six accounts and fifteen readings; `api_accounts` calls `balance()` per account, and nothing here would reveal what that costs at scale |
-| **`audit_log` being written** | **no** | nothing writes to it on either build, per the README's known gaps |
+| Missing tariff class, both directions | yes | `cases/TC-01`, `TC-02` |
+| Every POST endpoint with malformed bytes, wrong types, missing and extra fields | yes | `cases/TC-20`,`21`,`24`,`28`,`40`,`53` |
+| Client-supplied values the server should not trust (`stage`, `actor`, `read_on`, `amount`, `source`) | yes | `cases/TC-11`,`12`,`41`,`43`,`26`,`25` |
+| Duplicate and concurrent requests | yes | `cases/TC-60`, `TC-61` |
+| Nonexistent-account identities on every write path | yes | `cases/TC-13`, `TC-27`, `TC-42` |
+| UI at desktop and phone widths, incl. the overlay surface | yes | 01–12 |
+| Empty / error / success states of each screen | yes | 02, 04, 06, 10 |
+| **A no-credential or wrong-actor identity** | **no** | there is no authentication to bypass; documented gap |
+| **Behaviour when `read_on` is a valid but out-of-order backdated correction** | **no** | only invalid-format dates were driven; a valid backdated ISO date was not tested |
+| **The `reminder` → `warning` → `final` sequence issued in the correct order** | **no** | the console cannot issue `reminder` or `warning` at all, so the happy path of the disconnection policy has never been exercised anywhere |
+| **Whether anything downstream consumes `shutoff_notices`** | **no** | no consumer exists in this tree; whether a crew is actually dispatched is outside the console |
+| **Concurrent writes from two browsers** | **no** | concurrency was driven at the API only |
+| **Behaviour at production data volume** | **no** | 6 accounts, 15 readings; no timing claim in this report should be read as a performance result |
 
-The "no" rows are the honest boundary of this run.
+The "no" rows matter more than the "yes" ones. In particular, nobody has ever run the disconnection policy as designed, because the console provides no way to do it.
+
+## Questions for the team — not defects
+
+These are things I could not settle from the code and the README, and I am not filing any of them as defects.
+
+1. **The negative-consumption sign-off holds, but the label may not be what Billing meant.** I tested it as designed: a meter swap on `ACC-1188` (old unit at 1301.5, new unit reading 12.0) produced `consumption_m3: -1289.5` and `charges: -1827.09`, carried and not clamped, exactly as the README and the `consumption()` docstring specify. The behaviour is correct. The question is the display — the tile reads **"-$1827.09 — paid in full"** in green ([12-meter-swap-negative-period.png](12-meter-swap-negative-period.png)), because `app.js` treats any `balance_due <= 0` as settled. A $1,827 credit balance is not the same thing as a settled account, and this is also what makes Case 1's `$0.00` read as reassuring. Is "paid in full" the right label for a credit balance, or should credit balances be shown distinctly?
+2. **Should `audit_log` be a blocker for the disconnection path specifically?** The README lists the unwritten `audit_log` as a known gap, which I have respected. But Flow 2 writes ten irreversible dispatch records with an `actor` the client chose freely and no audit trail, so there is currently no way to reconstruct who dispatched a crew. That may be an acceptable gap for adjustments and a serious one for disconnections — a judgement I cannot make from here.
+3. **Can `reminder` and `warning` be issued at all today?** The API accepts them but the console only ever sends `final`. If the earlier stages are issued by some other system, the ordering check in Case 5 needs to read that system's data; if not, the policy has no implementation anywhere.
+4. **Is a negative adjustment intended, while a negative credit note is not?** I have treated the negative credit note as a defect (Case 9) on the grounds that it inverts the meaning of the record. Negative adjustments look legitimate. Confirm the asymmetry before it is enforced in code.
+5. **Should the console show that a service class is unpriced, or refuse to load the account?** This is the product half of Case 1. Refusing is safer; showing a clear "unpriced — awaiting tariff" state may be more useful to a clerk. Either beats `$0.00`.
 
 ## Residual risk
 
-- **The supervisor requirement is a claim, not authorisation.** `POST /api/shutoff` now demands `supervisor: true` for a final notice, and that closes the accidental dispatch — a defaulted stage, a stray click, a retry. It does not stop anyone who sends the flag, and it cannot, because the console has no login and `actor` is whatever the client says. Anyone who can reach the endpoint can still dispatch a crew, provided they issue the two earlier notices first. I have written this into the README next to the policy rather than leaving the code looking more protective than it is. **Accepting this fix means accepting that the crew-dispatch path is protected against error and not against intent.**
-- **The stage-order check is a read-then-write with no transaction.** Two simultaneous `final` requests could both read "warning exists, no final yet" and both insert. I did not exercise this — the duplicate-stage check makes the sequential case safe, and the concurrent case needs either a unique index on `(account_id, stage)` or a transaction. A unique index is the cheap fix and I did not add one, because it changes the schema and `seed.py` is shared fixture data.
-- **Nothing records who did any of this.** `audit_log` exists and is written by nothing, which the README lists as a known gap. For adjustments that is inconvenient; for an irreversible crew dispatch it means there is no record beyond a client-supplied string in the notice row. This is the gap I would close next, and it is a precondition for the supervisor requirement ever being real.
-- **Money is stored and summed as binary floats.** `REAL` columns, `float()` on input, `round(x, 2)` on output. Nothing in this run produced a visible error from it, and I did not convert to integer cents or `Decimal` — that is a data-model change well beyond a QA pass. It remains a real exposure for a billing system: repeated adjustment sums will eventually not reconcile to the penny against a system that uses exact arithmetic.
-- **Rejecting future `read_on` dates is my judgement, not a documented rule.** A meter cannot be read in the future, so it seemed safe, and it closes the ordering hole. If any real workflow post-dates a reading, this will refuse it. Worth a word with Billing.
-- **Only a `final` notice now moves the account to `shutoff_pending`.** Previously any stage did, including a reminder. The README's three-step framing says the crew goes on `final`, so I believe this is right, but it is a behaviour change to a status other systems may read. Also worth confirming.
-- **No maximum length on `reason`.** A 5,000-character value is stored in full and rendered into the ledger table, which distorts the row. Not corrupting anything, so not fixed — there is no documented limit to enforce.
-- **`datetime.datetime.utcnow()` is deprecated** on Python 3.14 and is still used by `now()`. It emitted no warning in this run and I left it alone, but it will need replacing with `datetime.now(datetime.UTC)`.
-- **The Reports screen is still unbuilt**, and its nav link still drops the clerk onto raw JSON.
-- **No automated tests exist**, so every fix above is guarded only by this run. See next steps.
-
-## Questions for the team
-
-These are not defects. Each is a decision I could not make from outside.
-
-1. **Should an account with no tariff be invoiced at all, or held?** I made it `blocked` — no number, flagged on screen — because billing zero silently was the defect. But the console now shows nothing for that account rather than an estimate, and if Revenue's export is routinely late, clerks may need an interim rate or an explicit "bill at last known rate" path rather than a blank.
-2. **Should a missing tariff raise an alert somewhere?** Right now it is visible only to a clerk who opens the account. The failure mode that produced this finding — an entire service class silently unbilled between exports — would be caught much earlier by a check that counts accounts whose class has no tariff row.
-3. **Is `shutoff_pending` on `final` only the correct state machine?** See residual risk.
-4. **Is there any legitimate case for a post-dated meter reading?** See residual risk.
-5. **Who is a supervisor, and how would the system know?** The policy cannot be enforced until there is an answer. This is the same question as the login gap.
+- **The disconnection policy has never been executed end to end, by anyone.** The console cannot issue `reminder` or `warning`, so the ordering rule has no working path to be tested against — fixing Case 5 by adding the check will make the console's only shutoff button fail until a stage selector exists. Those two changes have to land together.
+- **No claim here covers what happens after a notice is written.** Whether `shutoff_notices` actually reaches a dispatch system, and whether that system is idempotent over the ten duplicate rows in Case 9, is outside this tree and untested.
+- **Case 10's recovery path is unverified.** I proved a poisoned credit note blanks the console and that there is no console route to void one; I did not attempt or verify a repair procedure, so "delete the row in SQL" is an inference, not a tested recovery.
+- **Every timing figure is from a six-account SQLite fixture on a laptop, single user, warm.** `balance()` runs three queries per account and `api_accounts` calls it in a loop, so the list endpoint is O(accounts × 3) queries with no index on `readings.account_id` — at real utility scale that is a plausible problem, and this run says nothing about it either way.
+- **The XSS blast radius assumes the office-network boundary described in the README is real.** I could not verify that boundary. If the console is reachable more widely than the README believes, Case 15's severity rises sharply.
+- **No authentication exists, so no authorisation case could be run.** Every "identity" probe in this report is really an input-validation probe.
 
 ## Next steps
 
-1. **Write the tests, starting with the four that guard money and the crew dispatch** — the `balance()` blocked-tariff case, the credit-note sign check, the shutoff stage sequence, and the TC-02 meter-swap assertion. That last one matters most in the long run: it is what stops a future reader from "fixing" negative consumption and quietly reversing a decision Billing signed off. Every case in `cases/` has literal inputs and a falsification condition and is ready to graduate. Owner: whoever owns this service.
-2. **Decide the supervisor question, and until it is decided, treat the crew-dispatch path as unprotected against intent.** Owner: whoever owns the disconnection policy, with Billing.
-3. **Write `audit_log`**, at minimum for shutoff notices and credit notes — the two irreversible actions. Owner: same.
-4. **Add a check for accounts whose service class has no tariff row**, run after each weekly export. This is the systemic fix; everything I did is the local one. Owner: Revenue, with whoever owns the import.
-5. **Sweep production data for non-finite amounts and negative credit notes** before trusting any total. The fixes stop new ones; TC-31 shows existing ones are now contained and visible, but they are still wrong and still need correcting by hand.
-6. Then the smaller items: a unique index on `(account_id, stage)`, `utcnow()`, and either building the Reports screen or disabling its link.
+Ordered by what stops the worst outcome soonest.
+
+1. **Make `lookup_tariff` unable to return a silent zero** (Case 1) — return an explicit "not found" and have `balance()` refuse to produce a `balance_due` for an unpriced class. Owner: whoever owns billing. This is the one that is losing money right now, in production, invisibly.
+2. **Enforce the disconnection state machine server-side** (Cases 5–8) — require two prior notices before `final`, constrain `stage` to the three legal values, stop defaulting to `final`, and reject unknown accounts. Ship it with a stage selector in the UI (Case 12) or the console's shutoff button stops working.
+3. **Reject non-finite and negative amounts, and set `allow_nan=False` on the JSON encoder** (Cases 9, 10) — the encoder flag alone converts a silent console-wide outage into a loud 500, and is a one-line change worth making today even before the input validation lands.
+4. **Escape all interpolated values in `app.js`** (Case 15) — four sinks, listed above; `textContent` or an escape helper. Add a CSP header while you are there.
+5. **Validate input at every handler and stop serialising tracebacks** (Case 13) — return 400 with a field name, log the trace server-side only.
+6. **Validate `read_on` as an ISO date** (Cases 3, 4) — and consider a `CHECK` constraint, since the ordering depends on it.
+7. **Fix the two CSS defects** (Cases 18, 19) — wrap tables in an `overflow-x: auto` container, make the modal card `width: min(380px, calc(100vw - 32px))`, and raise the toast above the modal (Case 17).
+8. **Add existence checks and foreign keys** (Case 8b), **an idempotency guard on credit notes** (Case 11), **a length cap on free-text fields** (Case 16), and **remove or implement `Chartlet`** (Case 21).
+9. **Answer the five questions above**, particularly 1 and 3 — both change what the fixes in steps 1 and 2 should actually do.
+
+---
+
+# Fixes applied, and the re-run against them
+
+Everything above describes the build as found. The fixes below were then applied to that same tree and every failing case was re-run. The full re-run transcript is `rerun-after-fix.txt`.
+
+**Build after fixes:** `server.py` sha256 `cb6f0bfd…`, `static/app.js` sha256 `c0ca5d2a…`, `static/index.html` sha256 `c46c8eab…`, `static/style.css` sha256 `3c0b88fa…` (full list in `build-marker-fixed.txt`). `seed.py` also changed — it now creates a unique index and three lookup indexes, so **`python3 seed.py` must be re-run** for the concurrency guard to exist.
+
+**Left alone deliberately:** the negative-consumption sign-off, the unwritten `audit_log`, the absent login, and the unbuilt Reports screen. The first is signed-off behaviour and is regression-checked below; the other three are documented gaps, and closing them is a product decision, not a bug fix.
+
+## What changed
+
+**`server.py`**
+
+- `lookup_tariff` returns `None` for a missing service class instead of `(0.0, 0.0)`. `balance()` handles that by returning `priced: false`, an `unpriced_reason`, and `balance_due: null` — it no longer states a balance it cannot compute.
+- A validation layer: `req_str` / `opt_str` (type, emptiness, 500-char cap), `req_amount` (finite via `math.isfinite`, optional non-negative, ±1,000,000 bound), `req_date` (`date.fromisoformat`), and `load_account`, which every write handler now calls first so no row can be written against an account that does not exist.
+- `api_shutoff` requires `stage`, constrains it to `reminder`/`warning`/`final`, and refuses a stage whose predecessors are not already on record. A repeat of an existing stage is a 409. Only `final` moves the account to `shutoff_pending`.
+- Credit notes reject negative amounts and 409 on an identical note within 60 seconds. Adjustments still accept negatives, which is how an overcharge is corrected.
+- `BadRequest` maps to 400 with a message naming the field. Unhandled exceptions log the traceback to stderr and return a bare `{"error": "server error"}` — no trace in the body.
+- `json.dumps(..., allow_nan=False)`, so a non-finite value can never again be serialised as a token that breaks every client.
+
+**`seed.py`** — `UNIQUE INDEX ux_shutoff_account_stage (account_id, stage)`, because the handler's check and its insert are not one transaction; plus indexes on `readings(account_id, read_on DESC)`, `adjustments(account_id)` and `credit_notes(account_id)`.
+
+**`static/app.js`** — an `esc()` helper applied to every value interpolated into `innerHTML`, and `d-title` moved to `textContent`; `money()` returns `—` for non-numbers; unpriced accounts render "unpriced — awaiting tariff" and a banner rather than a currency figure; the `[{}]` empty-readings placeholder replaced with a real empty row; errors raised while the modal is open render *inside* the modal; the shutoff button offers only the next legal stage and asks for confirmation before `final`; `Escape` and backdrop click close the modal; both `fetch` chains have a `.catch`; the `Chartlet` call is gone.
+
+**`static/style.css`** — tables wrapped in an `overflow-x: auto` container so they scroll in place instead of moving the page; modal card `width: 380px; max-width: 100%` with a `max-height` and its own padding; toast `z-index` raised to 2000, above the modal's 1000; an `unpriced` colour token and a narrow-width block.
+
+## Re-run results
+
+| # | Case | Before | After | Evidence |
+|---|------|--------|-------|----------|
+| 1 | INDUSTRIAL account, no tariff | ❌ `balance_due: 0.0`, "paid in full" | ✅ `priced:false`, `balance_due:null`, banner | [details](#r1) |
+| 3 | `read_on: tomorrow-ish` | ❌ 201, reprices to $118.31 | ✅ 400 | [details](#r3) |
+| 4 | `read_on: 01-09-2026` | ❌ 201, silently unbilled | ✅ 400 | [details](#r3) |
+| 5 | `final` with no prior notices | ❌ 201, crew dispatched | ✅ 400, names the missing stages | [details](#r2) |
+| 6 | `stage` omitted | ❌ defaults to `final` | ✅ 400, required | [details](#r2) |
+| 7 | `stage: "banana"` | ❌ 201, stored | ✅ 400 | [details](#r2) |
+| 8 | Write against a phantom account | ❌ 201, orphan row | ✅ 400 on all four endpoints | [details](#r2) · [details](#r4) |
+| 9 | Concurrent duplicate notices | ❌ 10 rows | ✅ 1 row, 5/5 trials | [details](#r5) |
+| 9b | Credit note `-5000` | ❌ 201, balance +$5,000 | ✅ 400 | [details](#r4) |
+| 10 | Credit note `1e400` | ❌ 201, console-wide outage | ✅ 400 | [details](#r4) |
+| 11 | Duplicate credit note | ❌ 2 rows | ✅ 409, 1 row | [details](#r6) |
+| 13 | Seven malformed-input probes | ❌ 500 + traceback | ✅ 400 + field message, no trace | [details](#r4) |
+| 14 | Empty readings state | ❌ "null m3", `undefined` row | ✅ "no reading yet", "No meter readings yet." | [details](#r7) |
+| 15 | XSS via `reason` and `holder_name` | ❌ script executes | ✅ rendered as text | [details](#r8) |
+| 16 | 20,004-char reason | ❌ 201, stored | ✅ 400 | [details](#r4) |
+| 17 | Modal rejection message | ❌ painted under the scrim | ✅ inside the modal | [details](#r9) |
+| 12 | Shutoff button | ❌ one click, irreversible | ✅ next-legal-stage only, confirm before `final` | [details](#r10) |
+| 18 | Accounts list at 390px | ❌ page scrolls, balance off-screen | ⚠️ partial — table scrolls in place, balance still needs a swipe | [details](#r11) |
+| 19 | Modal at 390px | ❌ buttons off-screen, no exit | ✅ fully on screen, Escape and backdrop close it | [details](#r12) |
+| 21 | Console on page load | ❌ TypeError every load | ✅ clean | [details](#r13) |
+| 6b | **Negative consumption (signed off)** | ✅ carried | ✅ still carried, −1289.5 m³ | [details](#r14) |
+
+### <a id="r1"></a>Case 1 — the unpriced account now says so
+
+<details><summary>request / response</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' \
+  http://127.0.0.1:8414/api/accounts/ACC-4471
+```
+```json
+{
+  "billing": {
+    "account_id": "ACC-4471",
+    "priced": false,
+    "unpriced_reason": "no tariff for service class INDUSTRIAL",
+    "rate_per_m3": null,
+    "standing_fee": null,
+    "consumption_m3": 4313.0,
+    "charges": null,
+    "adjustments": 0,
+    "credits": 0,
+    "balance_due": null
+  }
+}
+```
+```
+HTTP 200 in 0.001483s
+```
+</details>
+
+![The accounts list after the fix: ACC-4471 reads "unpriced — awaiting tariff" in amber, ACC-7310 reads "no reading yet", and ACC-9002's payload is rendered as literal text](13-accounts-list-desktop-fixed.png)
+
+![ACC-4471 detail after the fix: an amber banner reads "This account cannot be billed: no tariff for service class INDUSTRIAL. Ask Revenue to load the tariff before invoicing.", with Rate and Charges showing an em-dash](14-detail-acc4471-unpriced-fixed.png)
+
+### <a id="r2"></a>Cases 5–8 — the disconnection policy is enforced
+
+<details><summary>the four rejections</summary>
+
+```
+--- final with no prior notices ---
+{ "error": "cannot issue 'final' for ACC-2043: missing prior notice(s): reminder, warning" }
+HTTP 400 in 0.000813s
+
+--- stage omitted ---
+{ "error": "stage is required, one of: reminder, warning, final" }
+HTTP 400 in 0.000781s
+
+--- stage=banana ---
+{ "error": "stage must be one of: reminder, warning, final" }
+HTTP 400 in 0.000694s
+
+--- final on a phantom account ---
+{ "error": "no such account: ACC-DOES-NOT-EXIST" }
+HTTP 400 in 0.000757s
+```
+</details>
+
+<details><summary>and the policy running in order — which had never been executable</summary>
+
+```
+--- issue reminder ---
+{ "ok": true, "account_id": "ACC-2043", "actor": "sup-1", "stage": "reminder" }   HTTP 201
+--- issue warning ---
+{ "ok": true, "account_id": "ACC-2043", "actor": "sup-1", "stage": "warning" }    HTTP 201
+--- issue final ---
+{ "ok": true, "account_id": "ACC-2043", "actor": "sup-1", "stage": "final" }      HTTP 201
+--- replay the final ---
+{ "error": "already issued", "detail": "a 'final' notice already exists for ACC-2043" }
+HTTP 409
+```
+```
+$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage FROM shutoff_notices ORDER BY id;"
+1|ACC-2043|sup-1|reminder
+2|ACC-2043|sup-1|warning
+3|ACC-2043|sup-1|final
+$ sqlite3 aqueduct.db "SELECT id,status FROM accounts WHERE id='ACC-2043';"
+ACC-2043|shutoff_pending
+```
+</details>
+
+### <a id="r3"></a>Cases 3, 4 — dates are parsed
+
+<details><summary>request / response</summary>
+
+```
+--- read_on=tomorrow-ish ---
+{ "error": "read_on must be a YYYY-MM-DD date, got 'tomorrow-ish'" }   HTTP 400
+--- read_on=01-09-2026 ---
+{ "error": "read_on must be a YYYY-MM-DD date, got '01-09-2026'" }     HTTP 400
+--- read_on=2026-09-01 (valid) ---
+{ "ok": true, "billing": { "consumption_m3": 11.5, "charges": 20.33, "balance_due": 20.33 } }
+HTTP 201
+```
+The 11.5 m³ that Case 4 silently discarded is now billed.
+</details>
+
+### <a id="r4"></a>Case 13 and the money probes — 400 with a message, no traceback
+
+<details><summary>all ten, verbatim</summary>
+
+```
+--- credit note 1e400 ---        { "error": "amount must be a finite number" }        HTTP 400
+--- credit note NaN ---          { "error": "amount must be a finite number" }        HTTP 400
+--- credit note -5000 ---        { "error": "amount must not be negative" }           HTTP 400
+--- credit note phantom acct --- { "error": "no such account: ACC-NOPE" }             HTTP 400
+--- adjustment missing amount ---{ "error": "amount is required" }                    HTTP 400
+--- adjustment amount=abc ---    { "error": "amount must be a number" }               HTTP 400
+--- malformed bytes ---          { "error": "request body must be valid JSON" }       HTTP 400
+--- wrong types ---              { "error": "account_id must be a string" }           HTTP 400
+--- 20000-char reason ---        { "error": "reason must be at most 500 characters" } HTTP 400
+--- meter_m3=not-a-number ---    { "error": "meter_m3 must be a number" }             HTTP 400
+```
+No response body contains a stack trace, a file path, or an interpreter version.
+
+A negative *adjustment* is still accepted, because that is a legitimate overcharge correction:
+```
+--- adjustment -12.50 ---
+{ "ok": true, "billing": { "adjustments": -12.5, "balance_due": 39.07 } }   HTTP 201
+```
+
+Orphan check across every table:
+```
+$ sqlite3 aqueduct.db "SELECT 'readings',COUNT(*) FROM readings r LEFT JOIN accounts a ON a.id=r.account_id WHERE a.id IS NULL UNION ALL ..."
+readings|0
+adjustments|0
+credit_notes|0
+shutoff_notices|0
+```
+</details>
+
+### <a id="r5"></a>Case 9 — concurrency, five trials
+
+<details><summary>12 parallel identical requests, repeated five times</summary>
+
+```
+201 409 409 409 409 409 409 409 409 409 409 409  -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409  -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409  -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409  -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409  -> rows written: 1 (expect 1)
+```
+Exactly one write per trial. The handler's pre-check would race on its own; the `UNIQUE` index is what makes this hold, and `sqlite3.IntegrityError` is translated to the same 409 rather than escaping as a 500.
+</details>
+
+### <a id="r6"></a>Case 11 — the retried credit note
+
+<details><summary>request / response</summary>
+
+```json
+{ "ok": true, "billing": { "credits": 40.0, "balance_due": 11.57 } }
+HTTP 201
+{ "error": "duplicate credit note",
+  "detail": "an identical credit note was issued in the last 60 seconds; not issuing a second one",
+  "existing_credit_note_id": 1,
+  "billing": { "credits": 40.0, "balance_due": 11.57 } }
+HTTP 409
+```
+```
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM credit_notes WHERE account_id='ACC-1188';"
+1
+```
+</details>
+
+### <a id="r7"></a>Case 14 — the empty state
+
+![ACC-7310 after the fix: Consumption reads "no reading yet" and the readings table reads "No meter readings yet."](15-detail-acc7310-empty-state-fixed.png)
+
+```json
+{ "consumptionTile": "no reading yet",
+  "readingsTableText": "No meter readings yet.",
+  "anyUndefinedOnPage": false,
+  "anyNullOnPage": false }
+```
+
+### <a id="r8"></a>Case 15 — the payloads render as text
+
+Measured on the accounts list, which previously rewrote `document.title` on load:
+
+```json
+{ "documentTitle": "Aqueduct — Billing Console",
+  "xssStillFires": false,
+  "injectedImgTags": 0,
+  "holderCellRendersAsText": "Moveis &lt;img src=x onerror=\"document.title='AQ-XSS'\"&gt;" }
+```
+
+Visible in [13-accounts-list-desktop-fixed.png](13-accounts-list-desktop-fixed.png) — ACC-9002's holder name now reads as the literal string `Moveis <img src=x onerror="document.title='AQ-XSS'">` instead of a broken-image icon.
+
+### <a id="r9"></a>Case 17 — the rejection message is where the clerk is looking
+
+```json
+{ "errorText": "Amount must be a finite number",
+  "errorVisible": true,
+  "errorRect": { "x": 554, "y": 370, "w": 332, "h": 34 },
+  "elementPaintedAtErrorCentre": "cn-error",
+  "userCanSeeError": true,
+  "modalStillOpen": true }
+```
+
+`document.elementFromPoint` at the message's own centre now returns the message, not the modal.
+
+![The credit note modal with "abc" entered: a red "Amount must be a finite number" bar sits inside the modal card, above the Amount field](16-modal-validation-visible-fixed.png)
+
+### <a id="r10"></a>Case 12 — the irreversible action is gated
+
+The button now offers only the next legal stage. On an account with no notices it reads "Issue reminder notice" and is not styled as dangerous ([14-detail-acc4471-unpriced-fixed.png](14-detail-acc4471-unpriced-fixed.png)). With `reminder` and `warning` on record it reads "Issue final notice" and clicking it raises:
+
+```
+confirm: Issue a FINAL disconnection notice for ACC-1188?
+
+This dispatches a crew and cannot be reversed from the console.
+```
+
+Dismissing it writes nothing — the important half of the assertion:
+
+```
+### after CANCELLING the confirm dialog
+$ sqlite3 aqueduct.db "SELECT stage FROM shutoff_notices WHERE account_id='ACC-1188';"
+reminder
+warning
+$ sqlite3 aqueduct.db "SELECT id,status FROM accounts WHERE id='ACC-1188';"
+ACC-1188|active
+```
+
+Accepting it completes the sequence and disables the control:
+
+```json
+{ "buttonLabelAfter": "All notices issued", "buttonDisabled": true, "toastText": "final notice issued" }
+```
+```
+$ sqlite3 aqueduct.db "SELECT id,stage,actor FROM shutoff_notices WHERE account_id='ACC-1188' ORDER BY id;"
+1|reminder|sup-1
+2|warning|sup-1
+3|final|console
+$ sqlite3 aqueduct.db "SELECT COUNT(*) FROM shutoff_notices WHERE account_id='ACC-1188' AND stage='final';"
+1
+```
+
+![ACC-1188 after the full sequence: three shutoff notices in the ledger and the action button reading "All notices issued"](20-shutoff-sequence-complete-fixed.png)
+
+During this check the confirm dialog was raised a second time by a stray click; the unique index absorbed it and the `final` row count stayed at 1. That was not a planned case, and it is the most convincing evidence in this section that the constraint is doing real work.
+
+### <a id="r11"></a>Case 18 — partially fixed, and worth reading carefully
+
+```json
+{ "layoutViewportWidth": 390,
+  "documentScrollWidth": 390,
+  "pageScrollsHorizontally": false,
+  "tableParentClass": "table-wrap",
+  "tableParentOverflowX": "auto",
+  "wrapperScrollsInsteadOfPage": true,
+  "wrapperClientWidth": 356,
+  "wrapperScrollWidth": 738 }
+```
+
+Two things improved and one did not. The layout viewport is a true 390px rather than being inflated to 748px, so text renders at full size instead of at roughly half scale; and the table scrolls inside its own box rather than dragging the page sideways.
+
+![The accounts list at 390px after the fix: text at full size, with the table's own horizontal scrollbar visible beneath it](17-accounts-list-mobile-390-fixed.png)
+
+**Balance due is still not visible without a swipe.** Six columns do not fit on a phone, and the standard scroll container does not change that:
+
+```json
+{ "scrolledWithinWrapper": 382, "pageStillNotScrolled": 0,
+  "balanceCellText": "unpriced — awaiting tariff", "balanceNowOnScreen": true }
+```
+
+![The same list scrolled sideways within the table, showing the Balance due column](18-accounts-list-mobile-scrolled-to-balance.png)
+
+The data is reachable and the page no longer misbehaves, but the number a field clerk opens the app to read is one gesture away. Making it the first thing they see means a card layout at narrow widths — a redesign of the list, not a bug fix, so I have not done it. Flagged in residual risk.
+
+### <a id="r12"></a>Case 19 — the modal fits and can be dismissed
+
+```json
+{ "layoutViewportWidth": 390, "cardWidth": 358, "cardOnScreen": true,
+  "amountField":   { "left": 40,  "right": 350, "onScreen": true },
+  "reasonField":   { "left": 40,  "right": 350, "onScreen": true },
+  "cancelButton":  { "left": 123, "right": 200, "onScreen": true },
+  "confirmButton": { "left": 210, "right": 350, "onScreen": true } }
+```
+```json
+{ "escapeClosesModal": true, "backdropClickClosesModal": true }
+```
+
+![The credit note modal at 390px after the fix: the card fits the screen with both buttons fully visible](19-credit-note-modal-mobile-390-fixed.png)
+
+### <a id="r13"></a>Case 21 — clean console
+
+`list_console_messages` returns no messages on the accounts list and on account detail, before and after driving the actions. Previously every load produced a `TypeError`.
+
+### <a id="r14"></a>The signed-off behaviour, regression-checked
+
+The point of this check is that none of the above quietly "fixed" something Billing asked to be left alone. Same meter swap as before — old unit at 1301.5, new unit reading 12.0:
+
+```
+consumption_m3: -1289.5   charges: -1827.09
+```
+
+Carried, not clamped, unchanged. The `-$1827.09 — paid in full` label is also unchanged, because that is question 1 for Billing rather than a defect, and answering it is their call.
+
+## Verdict after fixes
+
+**CONDITIONAL.** The six worst findings are closed with evidence, and the disconnection policy can now be executed as written for the first time. Three things gate an actual ship:
+
+1. **`python3 seed.py` must be re-run** or the unique index does not exist and Case 9's concurrency guard is absent. On a real database this is a migration, not a re-seed, and nobody has written one.
+2. **Question 3 is unanswered** — whether `reminder` and `warning` are issued elsewhere. The ordering check now requires them to exist in *this* database. If another system issues them, the check will block legitimate finals, which is a wrongful-denial harm in the opposite direction from the one that was fixed. This is the single most important thing to confirm before deploying the shutoff change.
+3. **Nothing here has been reviewed by anyone but me**, and the fixes were written by the same process that tested them — which is the weakest form of verification in this document.
+
+## Residual risk after fixes
+
+- **Balance due still requires a horizontal swipe on a phone** ([r11](#r11)). Partially addressed; the full answer is a narrow-width card layout.
+- **The credit-note duplicate guard is a 60-second window, not a constraint.** Unlike the shutoff guard it has no unique index behind it — two genuinely simultaneous identical requests could still both land, and a legitimate second identical credit note within a minute is refused. A client-supplied idempotency key would be the correct mechanism; the window is a mitigation.
+- **`MAX_AMOUNT` of 1,000,000 and `MAX_TEXT` of 500 are my numbers, not the business's.** They are bounds where there were none, but nobody has confirmed a credit note can never legitimately exceed a million.
+- **The ordering check reads only `shutoff_notices`.** If notices are ever archived or purged, previously-valid accounts will start failing the check.
+- **No test suite exists, so none of this is protected against regression.** Every case in this report is reproducible from `cases/<id>/request.sh`, but nothing runs them automatically. The highest-value follow-up is turning Cases 1, 5, 10 and 15 into an actual test file.
+- **Everything unfixed remains unfixed:** no authentication, no audit trail, no Reports screen — all documented gaps, all still open, and the audit-trail one now covers a disconnection path that is enforced but still not attributable ([question 2](#questions-for-the-team--not-defects)).
+- **Performance is still unmeasured.** Indexes were added on the columns `balance()` filters by, but `api_accounts` still runs three queries per account in a loop and no measurement at realistic volume was taken.

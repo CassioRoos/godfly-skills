@@ -1,2 +1,1 @@
-account_id omitted -> KeyError -> 500 + traceback.
-Status: FAILED -> fixed (400 naming the field).
+FAIL. final notice recorded against ACC-DOES-NOT-EXIST. 201 ok:true. No FK, no existence check.

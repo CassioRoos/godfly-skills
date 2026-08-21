@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-1188",
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": -1289.5,
+    "charges": -1827.09,
+    "adjustments": 0,
+    "credits": 0,
+    "balance_due": -1827.09
+  }
+}
+HTTP 201 in 0.001269s

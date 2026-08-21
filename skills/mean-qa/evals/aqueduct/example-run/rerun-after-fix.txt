@@ -1,0 +1,292 @@
+=== RE-RUN AGAINST FIXED BUILD ===
+
+--- TC-01 industrial account, no tariff ---
+{
+  "account": {
+    "id": "ACC-4471",
+    "holder_name": "Nordheim Textiles",
+    "service_class": "INDUSTRIAL",
+    "street": "300 Docas Norte",
+    "opened_on": "2017-01-20",
+    "status": "active"
+  },
+  "readings": [
+    {
+      "id": 10,
+      "account_id": "ACC-4471",
+      "read_on": "2026-08-01",
+      "meter_m3": 49301.0,
+      "source": "field"
+    },
+    {
+      "id": 9,
+      "account_id": "ACC-4471",
+      "read_on": "2026-07-01",
+      "meter_m3": 44988.0,
+      "source": "field"
+    },
+    {
+      "id": 8,
+      "account_id": "ACC-4471",
+      "read_on": "2026-06-01",
+      "meter_m3": 40210.0,
+      "source": "field"
+    }
+  ],
+  "adjustments": [],
+  "credit_notes": [],
+  "shutoff_notices": [],
+  "billing": {
+    "account_id": "ACC-4471",
+    "priced": false,
+    "unpriced_reason": "no tariff for service class INDUSTRIAL",
+    "rate_per_m3": null,
+    "standing_fee": null,
+    "consumption_m3": 4313.0,
+    "charges": null,
+    "adjustments": 0,
+    "credits": 0,
+    "balance_due": null
+  }
+}
+HTTP 200 in 0.001483s
+
+--- TC-10 final with no prior notices ---
+{
+  "error": "cannot issue 'final' for ACC-2043: missing prior notice(s): reminder, warning"
+}
+HTTP 400 in 0.000813s
+
+--- TC-11 stage omitted ---
+{
+  "error": "stage is required, one of: reminder, warning, final"
+}
+HTTP 400 in 0.000781s
+
+--- TC-12 stage=banana ---
+{
+  "error": "stage must be one of: reminder, warning, final"
+}
+HTTP 400 in 0.000694s
+
+--- TC-13 final on phantom account ---
+{
+  "error": "no such account: ACC-DOES-NOT-EXIST"
+}
+HTTP 400 in 0.000757s
+
+=== disconnection policy, in order (never previously executable) ===
+
+--- issue reminder ---
+{
+  "ok": true,
+  "account_id": "ACC-2043",
+  "actor": "sup-1",
+  "stage": "reminder"
+}
+HTTP 201 in 0.003417s
+
+--- issue warning ---
+{
+  "ok": true,
+  "account_id": "ACC-2043",
+  "actor": "sup-1",
+  "stage": "warning"
+}
+HTTP 201 in 0.001330s
+
+--- issue final ---
+{
+  "ok": true,
+  "account_id": "ACC-2043",
+  "actor": "sup-1",
+  "stage": "final"
+}
+HTTP 201 in 0.001151s
+
+--- TC-61 duplicate final (replay) ---
+{
+  "error": "already issued",
+  "detail": "a 'final' notice already exists for ACC-2043",
+  "account_id": "ACC-2043"
+}
+HTTP 409 in 0.000740s
+
+### direct read:
+1|ACC-2043|sup-1|reminder
+2|ACC-2043|sup-1|warning
+3|ACC-2043|sup-1|final
+ACC-2043|shutoff_pending
+
+### TC-61 concurrency: 10 parallel finals on a fresh account
+201 409 409 409 409 409 409 409 409 409 
+reminder rows for ACC-1188 (expect 1):
+1
+
+=== concurrency with the UNIQUE constraint in place, 5 trials ===
+201 409 409 409 409 409 409 409 409 409 409 409 -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409 -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409 -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409 -> rows written: 1 (expect 1)
+201 409 409 409 409 409 409 409 409 409 409 409 -> rows written: 1 (expect 1)
+
+=== money endpoints ===
+
+--- TC-25 credit note 1e400 ---
+{
+  "error": "amount must be a finite number"
+}
+HTTP 400
+
+--- TC-24 credit note NaN ---
+{
+  "error": "amount must be a finite number"
+}
+HTTP 400
+
+--- TC-26 credit note -5000 ---
+{
+  "error": "amount must not be negative"
+}
+HTTP 400
+
+--- TC-27 credit note phantom account ---
+{
+  "error": "no such account: ACC-NOPE"
+}
+HTTP 400
+
+--- TC-20 adjustment missing amount ---
+{
+  "error": "amount is required"
+}
+HTTP 400
+
+--- TC-21 adjustment amount=abc ---
+{
+  "error": "amount must be a number"
+}
+HTTP 400
+
+--- TC-28 malformed bytes ---
+{
+  "error": "request body must be valid JSON"
+}
+HTTP 400
+
+--- TC-53 wrong types ---
+{
+  "error": "account_id must be a string"
+}
+HTTP 400
+
+--- TC-62 oversized reason ---
+{
+  "error": "reason must be at most 500 characters"
+}
+HTTP 400
+
+--- negative ADJUSTMENT still allowed (legitimate overcharge correction) ---
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-1188",
+    "priced": true,
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 33.5,
+    "charges": 51.57,
+    "adjustments": -12.5,
+    "credits": 0,
+    "balance_due": 39.07
+  }
+}
+HTTP 201
+
+=== readings and dates ===
+
+--- TC-41 read_on=tomorrow-ish ---
+{
+  "error": "read_on must be a YYYY-MM-DD date, got 'tomorrow-ish'"
+}
+HTTP 400
+
+--- TC-43 read_on=01-09-2026 (day-first) ---
+{
+  "error": "read_on must be a YYYY-MM-DD date, got '01-09-2026'"
+}
+HTTP 400
+
+--- TC-40 meter_m3=not-a-number ---
+{
+  "error": "meter_m3 must be a number"
+}
+HTTP 400
+
+--- TC-42 reading on phantom account ---
+{
+  "error": "no such account: ACC-NOPE-2"
+}
+HTTP 400
+
+--- valid ISO reading still works ---
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-2043",
+    "priced": true,
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 11.5,
+    "charges": 20.33,
+    "adjustments": 0,
+    "credits": 0,
+    "balance_due": 20.33
+  }
+}
+HTTP 201
+
+### orphan rows across every table (expect none):
+readings|0
+adjustments|0
+credit_notes|0
+shutoff_notices|0
+
+=== TC-60 duplicate credit note (retry) ===
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-1188",
+    "priced": true,
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 33.5,
+    "charges": 51.57,
+    "adjustments": 0,
+    "credits": 40.0,
+    "balance_due": 11.57
+  }
+}
+HTTP 201
+{
+  "error": "duplicate credit note",
+  "detail": "an identical credit note was issued in the last 60 seconds; not issuing a second one",
+  "existing_credit_note_id": 1,
+  "billing": {
+    "account_id": "ACC-1188",
+    "priced": true,
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 33.5,
+    "charges": 51.57,
+    "adjustments": 0,
+    "credits": 40.0,
+    "balance_due": 11.57
+  }
+}
+HTTP 409
+credit_note rows (expect 1):
+1
+
+=== TC-90 signed-off negative consumption must STILL be carried ===
+consumption_m3: -1289.5 charges: -1827.09

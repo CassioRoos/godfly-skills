@@ -1,0 +1,1 @@
+FAIL (UI only). Accounts list at phone width. table min-width 720px with parent overflow-x visible. At a 500px window the page scrolls horizontally by 248px and Balance due / Status are off-screen; under 390x844 mobile emulation the layout viewport is forced to 748px. Image: 07-accounts-list-mobile-390.png.

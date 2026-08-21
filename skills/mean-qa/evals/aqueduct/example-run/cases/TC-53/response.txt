@@ -1,0 +1,5 @@
+{
+  "error": "server error",
+  "trace": "Traceback (most recent call last):\n  File \"/srv/aqueduct/server.py\", line 247, in do_POST\n    code, out = fn(conn, body)\n                ~~^^^^^^^^^^^^\n  File \"/srv/aqueduct/server.py\", line 141, in api_adjustment\n    amount = float(body[\"amount\"])\nTypeError: float() argument must be a string or a real number, not 'dict'\n"
+}
+HTTP 500 in 0.001130s

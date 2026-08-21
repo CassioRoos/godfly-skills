@@ -1,0 +1,4 @@
+cb6f0bfdc4abc5fcbeba19120b368b0a2b2bf9b3d4c8208f975b2ba2174a5756  server.py
+c0ca5d2a2aba919c1cd5eb8dbc588e6cfced03cc37a2e0a43cdd2f0e09c27bcb  static/app.js
+c46c8eabd06fca2d008471841ed2b541a5af7fd045768e3a82037d1dd9fab2df  static/index.html
+3c0b88fabaf23671696eaf7df72fc7704ab5406c93f73ec619a829945d492857  static/style.css

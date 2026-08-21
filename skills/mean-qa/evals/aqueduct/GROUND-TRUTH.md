@@ -130,7 +130,30 @@ README says it is an unbuilt placeholder — so reporting it as a *defect* earns
 nothing; reporting it as a broken-link / wrong-error-page observation earns the
 2 points.
 
-**Detection total available: 6+6+5+5+3+3+3+2+2+2+2 = 39 → normalised to 30 pts.**
+### RESPONSIVE — mobile-only (3 pts each)
+
+Both are invisible at desktop width. An arm that captures only one viewport
+cannot find either, however carefully it looks.
+
+**F13 — every table carries `min-width: 720px`, so the whole page scrolls
+sideways on a phone.** At 390px the accounts list and the ledger overflow the
+viewport, the page gets a horizontal scrollbar, and the **Balance due** and
+**Status** columns sit off-screen — on a screen whose entire purpose is telling a
+clerk what an account owes. Oracle: content must not force page-level horizontal
+scroll at a supported width; a primary column must be reachable without one.
+
+**F14 — `.modal-card` has `min-width: 380px` and cannot shrink.** Below that
+width the credit-note dialog is wider than the screen, so its Cancel and
+"Issue credit note" buttons are partly or wholly unreachable — on the one
+irreversible action in the app. Oracle: a dialog must fit the viewport it is
+shown in.
+
+**Scoring:** full credit needs a capture at a narrow width showing the defect.
+Reading `min-width` out of the stylesheet and reasoning about it is **half
+credit** — the rule under test is whether the arm *evidences* both viewports,
+and a run that reasoned its way there without a mobile screenshot has not.
+
+**Detection total available: 6+6+5+5+3+3+3+2+2+2+2+3+3 = 45 → normalised to 30 pts.**
 
 ---
 

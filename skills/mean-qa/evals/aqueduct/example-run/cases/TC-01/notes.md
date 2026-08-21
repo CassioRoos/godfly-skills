@@ -1,7 +1,1 @@
-A service class absent from `tariffs` was billed at rate 0.00 / fee 0.00 and
-reported as owing nothing. Oracle: the README billing formula plus the four
-sibling accounts whose classes ARE on file and bill correctly.
-db-read.txt shows the tariffs table has no INDUSTRIAL row.
-oracle-join.txt recomputes every account from the raw tables.
-Reproduced 2/2 from a clean seed. Status: FAILED -> fixed (billing_status
-"blocked", balance_due null).
+FAIL. INDUSTRIAL account ACC-4471: 4313 m3 consumed, balance_due 0.0, rate_per_m3 0.0. No tariffs row for INDUSTRIAL exists. Reproduced 2/2.
