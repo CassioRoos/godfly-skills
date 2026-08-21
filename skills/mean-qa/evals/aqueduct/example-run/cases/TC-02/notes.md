@@ -1,0 +1,1 @@
+PASS (positive control for TC-01). With an INDUSTRIAL tariff row inserted, the same account bills 13465.30. Proves the zero comes from the missing lookup, not from the readings. Tariff row removed again afterwards.

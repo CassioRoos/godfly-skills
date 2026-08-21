@@ -1,0 +1,5 @@
+{
+  "error": "server error",
+  "trace": "Traceback (most recent call last):\n  File \"/srv/aqueduct/server.py\", line 247, in do_POST\n    code, out = fn(conn, body)\n                ~~^^^^^^^^^^^^\n  File \"/srv/aqueduct/server.py\", line 128, in api_add_reading\n    meter_m3 = float(body[\"meter_m3\"])\nValueError: could not convert string to float: 'not-a-number'\n"
+}
+HTTP 500 in 0.002768s

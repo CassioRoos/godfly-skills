@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aqueduct — Billing Console</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Aqueduct <span class="sub">billing console</span></h1>
+  <nav>
+    <a href="/" id="nav-accounts">Accounts</a>
+    <a href="/reports" id="nav-reports">Reports</a>
+  </nav>
+</header>
+
+<main>
+  <section id="list-view">
+    <h2>Accounts</h2>
+    <div id="sparkline" class="sparkline"></div>
+    <table id="accounts">
+      <thead><tr>
+        <th>Account</th><th>Holder</th><th>Class</th><th>Consumption</th>
+        <th>Balance due</th><th>Status</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="detail-view" hidden>
+    <a href="/" class="back">&larr; all accounts</a>
+    <h2 id="d-title"></h2>
+    <p id="d-meta" class="meta"></p>
+    <div id="d-billing" class="billing"></div>
+
+    <h3>Meter readings</h3>
+    <table id="d-readings">
+      <thead><tr><th>Read on</th><th>Meter (m3)</th><th>Source</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <h3>Ledger</h3>
+    <table id="d-ledger">
+      <thead><tr><th>Type</th><th>Amount</th><th>Reason</th><th>Actor</th><th>When</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <h3>Actions</h3>
+    <div class="actions">
+      <label>Adjustment amount
+        <input id="adj-amount" type="text" value="0.00">
+      </label>
+      <label>Reason
+        <input id="adj-reason" type="text" placeholder="meter fault, goodwill, …">
+      </label>
+      <button id="btn-adjust">Apply adjustment</button>
+      <button id="btn-credit">Issue credit note…</button>
+      <button id="btn-shutoff" class="danger">Issue shutoff notice</button>
+    </div>
+  </section>
+</main>
+
+<div id="modal" class="modal" hidden>
+  <div class="modal-card">
+    <h3>Issue credit note</h3>
+    <p class="warn">Credit notes cannot be voided from the console.</p>
+    <label>Amount <input id="cn-amount" type="text" value=""></label>
+    <label>Reason <input id="cn-reason" type="text" value=""></label>
+    <div class="modal-actions">
+      <button id="cn-cancel">Cancel</button>
+      <button id="cn-confirm">Issue credit note</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

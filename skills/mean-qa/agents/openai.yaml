@@ -1,7 +1,7 @@
 interface:
   display_name: "MeanQA: Cruel QA"
-  short_description: "Evidence-first QA sweeps with bug artifacts"
-  default_prompt: "Use $mean-qa to validate this flow with evidence-backed QA, executable bug artifacts, and only the layers needed."
+  short_description: "Adversarial QA that leaves a proof directory behind"
+  default_prompt: "Use $mean-qa to test this flow adversarially and leave a run directory: embedded screen captures, replayable cases, and a verdict that names its oracle."
 policy:
   # Not runtime-enforced; documents the safety contract defined in SKILL.md
   # (Environment Boundary). If you deploy this skill in a new runtime, wire
@@ -15,3 +15,4 @@ policy:
     - guess credentials or bypass MFA
     - write secrets, tokens, cookies, private URLs, or PII into artifacts
     - report a skipped or unproven evidence layer as passed
+    - name a screenshot or artifact that is not on disk

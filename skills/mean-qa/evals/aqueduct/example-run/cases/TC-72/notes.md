@@ -1,0 +1,1 @@
+FAIL (UI only, no request). Modal client-side reject branch. Toast is in the DOM, hidden=false, at (620,833) 201x43, z-index 5; document.elementFromPoint at its own centre returns the modal overlay (z-index 1000). Image: 06-modal-validation-toast-buried.png.

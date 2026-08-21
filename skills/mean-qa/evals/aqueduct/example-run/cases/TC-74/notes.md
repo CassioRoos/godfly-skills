@@ -1,0 +1,1 @@
+FAIL (UI only). Credit-note modal at 390px: card is width/min-width 380px centred in a 748px layout viewport. Confirm button occupies x 400-540, entirely beyond the 390px screen; Amount and Reason clipped. No backdrop-click and no Escape handler, so a reload is the only exit. Image: 08-credit-note-modal-mobile-390.png.

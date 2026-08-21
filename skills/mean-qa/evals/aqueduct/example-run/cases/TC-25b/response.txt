@@ -1,0 +1,64 @@
+{
+  "account": {
+    "id": "ACC-1188",
+    "holder_name": "Helena Marchetti",
+    "service_class": "DOMESTIC",
+    "street": "14 Rua das Cisternas",
+    "opened_on": "2019-03-11",
+    "status": "active"
+  },
+  "readings": [
+    {
+      "id": 4,
+      "account_id": "ACC-1188",
+      "read_on": "2026-08-01",
+      "meter_m3": 1301.5,
+      "source": "field"
+    },
+    {
+      "id": 3,
+      "account_id": "ACC-1188",
+      "read_on": "2026-07-01",
+      "meter_m3": 1268.0,
+      "source": "field"
+    },
+    {
+      "id": 2,
+      "account_id": "ACC-1188",
+      "read_on": "2026-06-01",
+      "meter_m3": 1231.5,
+      "source": "field"
+    },
+    {
+      "id": 1,
+      "account_id": "ACC-1188",
+      "read_on": "2026-05-01",
+      "meter_m3": 1204.0,
+      "source": "field"
+    }
+  ],
+  "adjustments": [],
+  "credit_notes": [
+    {
+      "id": 1,
+      "account_id": "ACC-1188",
+      "amount": Infinity,
+      "reason": "overflow probe",
+      "actor": "clerk",
+      "created_at": "2026-08-21T16:50:49Z"
+    }
+  ],
+  "shutoff_notices": [],
+  "billing": {
+    "account_id": "ACC-1188",
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 33.5,
+    "charges": 51.57,
+    "adjustments": 0,
+    "credits": Infinity,
+    "balance_due": -Infinity
+  }
+}
+HTTP 200 in 0.001153s
+STRICT PARSE FAILED: non-standard token: -Infinity
