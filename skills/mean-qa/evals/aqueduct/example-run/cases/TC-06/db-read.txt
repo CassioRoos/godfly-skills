@@ -1,0 +1,5 @@
+$ sqlite3 aqueduct.db "SELECT id,account_id,actor,stage,issued_at FROM shutoff_notices WHERE account_id='ACC-2043';"
+1|ACC-2043|temp-intern|final|2026-08-21T13:25:55Z
+
+$ sqlite3 aqueduct.db "SELECT id,status FROM accounts WHERE id='ACC-2043';"
+ACC-2043|shutoff_pending

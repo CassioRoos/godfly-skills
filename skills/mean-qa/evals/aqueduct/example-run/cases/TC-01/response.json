@@ -1,0 +1,47 @@
+{
+  "account": {
+    "id": "ACC-4471",
+    "holder_name": "Nordheim Textiles",
+    "service_class": "INDUSTRIAL",
+    "street": "300 Docas Norte",
+    "opened_on": "2017-01-20",
+    "status": "active"
+  },
+  "readings": [
+    {
+      "id": 10,
+      "account_id": "ACC-4471",
+      "read_on": "2026-08-01",
+      "meter_m3": 49301.0,
+      "source": "field"
+    },
+    {
+      "id": 9,
+      "account_id": "ACC-4471",
+      "read_on": "2026-07-01",
+      "meter_m3": 44988.0,
+      "source": "field"
+    },
+    {
+      "id": 8,
+      "account_id": "ACC-4471",
+      "read_on": "2026-06-01",
+      "meter_m3": 40210.0,
+      "source": "field"
+    }
+  ],
+  "adjustments": [],
+  "credit_notes": [],
+  "shutoff_notices": [],
+  "billing": {
+    "account_id": "ACC-4471",
+    "rate_per_m3": 0.0,
+    "standing_fee": 0.0,
+    "consumption_m3": 4313.0,
+    "charges": 0.0,
+    "adjustments": 0,
+    "credits": 0,
+    "balance_due": 0.0
+  }
+}
+HTTP 200 in 0.006598s

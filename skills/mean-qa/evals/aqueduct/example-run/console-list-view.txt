@@ -1,0 +1,16 @@
+$ (Chrome DevTools MCP) list_console_messages  --  http://localhost:8413/ accounts list, after load
+[error] Uncaught TypeError: Cannot read properties of undefined (reading 'render')   <- window.Chartlet is undefined (app.js:20)
+[error] Failed to load resource: the server responded with a status of 404 (Not Found) [2 times]
+
+$ (Chrome DevTools MCP) evaluate_script
+{
+  "documentTitle": "AQ-XSS",            <- stored payload EXECUTED
+  "xssExecuted": true,
+  "chartletDefined": "undefined",
+  "sparklineInnerHTML": "",
+  "sparklineRect": { "w": 1044, "h": 0 },
+  "holderCellHTML": "Moveis <img src=\"x\" onerror=\"document.title='AQ-XSS'\">",
+  "injectedImgTags": 1,
+  "acc4471Row": ["ACC-4471","Nordheim Textiles","INDUSTRIAL","4313 m3","$0.00 — paid in full","active"],
+  "acc7310Row": ["ACC-7310","Ivo Radulescu","DOMESTIC","null m3","$4.00","active"]
+}

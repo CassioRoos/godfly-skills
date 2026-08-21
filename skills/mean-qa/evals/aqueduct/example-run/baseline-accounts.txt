@@ -1,0 +1,6 @@
+ACC-1188|Helena Marchetti|DOMESTIC|active
+ACC-2043|Bruno Sabatini|DOMESTIC|active
+ACC-4471|Nordheim Textiles|INDUSTRIAL|active
+ACC-5520|Corina Delacroix|COMMERCIAL|active
+ACC-7310|Ivo Radulescu|DOMESTIC|active
+ACC-9002|Moveis <img src=x onerror="document.title='AQ-XSS'">|COMMERCIAL|active

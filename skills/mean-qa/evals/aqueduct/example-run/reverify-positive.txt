@@ -1,0 +1,141 @@
+============ POSITIVE CONTROLS: the legitimate work must still work ============
+
+--- no orphan rows were written by any of the refused requests ---
+readings|0
+adjustments|0
+credit_notes|0
+notices(all)|0
+adjustments(all)|0
+credits(all)|0
+readings(all)|15
+
+--- ACC-5520 consumption unchanged by the refused reading (expect 47.0) ---
+consumption_m3 = 47.0 balance_due = 107.85
+
+--- SIGNED-OFF BEHAVIOUR: meter swap must still carry a NEGATIVE period (README, Billing sign-off 2026-06) ---
+$ POST /api/readings {account_id: ACC-1188, meter_m3: 0, read_on: 2026-08-15, source: meter swap}
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-1188",
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": -1301.5,
+    "charges": -1844.13,
+    "adjustments": 0,
+    "credits": 0,
+    "balance_due": -1844.13,
+    "billing_status": "ok",
+    "billing_error": null
+  }
+}
+HTTP 201
+
+--- a legitimate POSITIVE credit note must still be accepted ---
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-2043",
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 15.5,
+    "charges": 26.01,
+    "adjustments": 0,
+    "credits": 15.5,
+    "balance_due": 10.51,
+    "billing_status": "ok",
+    "billing_error": null
+  }
+}
+HTTP 201
+
+--- a legitimate NEGATIVE adjustment must still be accepted (both signs are the point of an adjustment) ---
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-2043",
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 15.5,
+    "charges": 26.01,
+    "adjustments": -3.25,
+    "credits": 15.5,
+    "balance_due": 7.26,
+    "billing_status": "ok",
+    "billing_error": null
+  }
+}
+HTTP 201
+
+--- the disconnection policy in the CORRECT order must be allowed end to end ---
+$ POST /api/shutoff stage=reminder (no supervisor claim needed)
+{
+  "ok": true,
+  "account_id": "ACC-5520",
+  "actor": "clerk-a",
+  "stage": "reminder"
+}
+HTTP 201
+$ POST /api/shutoff stage=warning (no supervisor claim needed)
+{
+  "ok": true,
+  "account_id": "ACC-5520",
+  "actor": "clerk-a",
+  "stage": "warning"
+}
+HTTP 201
+$ POST /api/shutoff stage=final WITHOUT supervisor -> must still refuse even though order is now satisfied
+{
+  "error": "a final notice sends a crew and may only be issued by a supervisor"
+}
+HTTP 403
+$ POST /api/shutoff stage=final WITH supervisor -> must now be allowed
+{
+  "ok": true,
+  "account_id": "ACC-5520",
+  "actor": "sup-mendes",
+  "stage": "final"
+}
+HTTP 201
+$ POST /api/shutoff stage=final AGAIN -> must refuse as duplicate (no second crew)
+{
+  "error": "a final notice has already been issued for ACC-5520"
+}
+HTTP 409
+
+--- durable state after the correct sequence ---
+id  account_id  actor       stage   
+--  ----------  ----------  --------
+1   ACC-5520    clerk-a     reminder
+2   ACC-5520    clerk-a     warning 
+3   ACC-5520    sup-mendes  final   
+id        status         
+--------  ---------------
+ACC-2043  active         
+ACC-5520  shutoff_pending
+
+--- a reminder alone must NOT move the account out of active (only final dispatches a crew) ---
+status before: active
+reminder -> HTTP 201
+status after reminder: active
+
+--- TC-21 concurrency still conserves: 12 simultaneous adjustments of 10.00 ---
+
+rows_written  total
+------------  -----
+12            120.0
+
+--- no response body anywhere still leaks a traceback or a source path ---
+occurrences in the full re-verification transcript: 3
+
+--- every /api/accounts response is now strictly valid JSON (browser-grade) ---
+JSON.parse ok, accounts: 6
+
+--- server stderr: are the refused requests logged as 4xx rather than crashing? ---
+tracebacks in server log: 0
+127.0.0.1 - "POST /api/adjustments HTTP/1.1" 201 -
+127.0.0.1 - "POST /api/adjustments HTTP/1.1" 201 -
+127.0.0.1 - "POST /api/adjustments HTTP/1.1" 201 -
+127.0.0.1 - "POST /api/adjustments HTTP/1.1" 201 -
+127.0.0.1 - "POST /api/adjustments HTTP/1.1" 201 -
+127.0.0.1 - "GET /api/accounts HTTP/1.1" 200 -

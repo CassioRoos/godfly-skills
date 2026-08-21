@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "billing": {
+    "account_id": "ACC-2043",
+    "rate_per_m3": 1.42,
+    "standing_fee": 4.0,
+    "consumption_m3": 15.5,
+    "charges": 26.01,
+    "adjustments": Infinity,
+    "credits": 0,
+    "balance_due": Infinity
+  }
+}
+HTTP 201 in 0.003408s

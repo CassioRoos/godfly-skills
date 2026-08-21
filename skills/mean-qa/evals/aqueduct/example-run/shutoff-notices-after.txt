@@ -1,0 +1,9 @@
+id  account_id          actor        stage   issued_at           
+--  ------------------  -----------  ------  --------------------
+1   ACC-2043            temp-intern  final   2026-08-21T13:25:55Z
+2   ACC-5520            clerk-a      final   2026-08-21T13:26:10Z
+3   ACC-5520            clerk-a      BANANA  2026-08-21T13:26:10Z
+4   ACC-2043            temp-intern  final   2026-08-21T13:26:10Z
+5   ACC-2043            temp-intern  final   2026-08-21T13:26:10Z
+6   ACC-2043            temp-intern  final   2026-08-21T13:26:10Z
+7   ACC-DOES-NOT-EXIST  clerk-a      final   2026-08-21T13:26:10Z

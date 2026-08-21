@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "account_id": "ACC-2043",
+  "actor": "temp-intern"
+}
+HTTP 201 in 0.001479s
+{
+  "ok": true,
+  "account_id": "ACC-2043",
+  "actor": "temp-intern"
+}
+HTTP 201 in 0.001219s
+{
+  "ok": true,
+  "account_id": "ACC-2043",
+  "actor": "temp-intern"
+}
+HTTP 201 in 0.000980s
