@@ -1,6 +1,6 @@
 # {{SLUG}} — toolshed state
 
-Convention: [../WORKBENCH.md](../WORKBENCH.md) (read it once; it is short).
+Convention: [../WORKBENCH.md](../SKILL.md) (read it once; it is short).
 **Read this file first in every session, any model.** Then work the records:
 [decisions.md](./decisions.md) · [questions.md](./questions.md) ·
 [evidence.md](./evidence.md).

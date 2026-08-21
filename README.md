@@ -1,8 +1,8 @@
 # godfly-skills
 
-**18 skills for Claude Code and Codex CLI that form one system: an adversarial
-reviewer, the evidence-grounded toolkit it draws on, and the production-ops
-discipline it feeds into.**
+**19 skills for Claude Code and Codex CLI that form one system: an adversarial
+reviewer, the evidence-grounded toolkit it draws on, the production-ops
+discipline it feeds into, and the gauntlet that proves any of it actually works.**
 
 Not a grab-bag. Every skill here has a deliberately carved territory and knows
 exactly which sibling to hand off to when the question isn't its job — and the
@@ -107,7 +107,7 @@ flowchart TD
 
 | Skill | What it does |
 |---|---|
-| [godfly](skills/godfly/SKILL.md) | Adversarial collaborator with a non-skippable Steelman Guarantee, evidence-tiered challenges, a live-state PR/incident review gate, and a hold/yield rule where evidence decides — not authority. |
+| [godfly](skills/godfly/SKILL.md) | Adversarial collaborator with a non-skippable Steelman Guarantee, evidence-tiered challenges, a live-state PR/incident review gate, a hold/yield rule where evidence decides — not authority — and a permanent verdict graph under `docs/verdicts/` so a settled claim is never re-derived. |
 
 ### The adversarial & analysis spine
 
@@ -135,6 +135,7 @@ flowchart TD
 | [toolshed](skills/toolshed/SKILL.md) | Mortal working state for one task under `docs/work/<slug>/` — deleted at close, survivors become ADRs/specs. |
 | [handoff](skills/handoff/SKILL.md) | Compact continuation notes so the next session/agent doesn't reconstruct the thread. |
 | [spec-adr-builder](skills/spec-adr-builder/SKILL.md) | Specs, ADRs, and RFCs with non-goals, alternatives, rollout, and rollback. |
+| [gauntlet](skills/gauntlet/SKILL.md) | Empirically tests whether a skill beats the raw model: planted-flaw fixtures, no-skill control arms, blind judging, pressure tests, cross-model runs via installed CLIs. Every finding becomes a permanent rule in the skill under test. |
 
 ## Install
 
@@ -162,7 +163,7 @@ cross-references: godfly leans on the spine, toolshed leans on the ops suite.
 2. **Evidence decides, not authority.** Hold when the evidence holds; yield cleanly when it doesn't.
 3. **Steelman before challenge.** Prove you understood the position before attacking it.
 4. **Unclassifiable environment = production.** Ceremony scales with blast radius.
-5. **State is mortal, decisions are not.** Working notes die at task close; decisions promote to ADRs immediately.
+5. **State is mortal, decisions are not.** Working notes die at task close; contract-changing decisions promote to ADRs the moment they're made; settled cross-task claims persist as verdict nodes in `docs/verdicts/`.
 6. **Aim at the code, never the person.** Heat scales with stakes, and it's always pointed at the work.
 
 ## License
