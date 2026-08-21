@@ -107,8 +107,23 @@ omitted risk discounts everything else, permanently.
 
 ## Onto a PR
 
-Upload images with the repo's image tooling, then write the verification section
-into the PR body. Keep the run directory too — the PR section is a **view** of
+Upload the images, then write the verification section into the PR body. A
+repo's own tooling wins if it has any; failing that, `gh image` (the
+`drogers0/gh-image` extension) takes paths directly — there is no `upload`
+subcommand — and prints the `![](…)` markdown refs to stdout for you to paste:
+
+```bash
+gh image <path>...                    # repo inferred from the git remote
+gh image --repo owner/repo <path>...  # or pin it
+```
+
+**It needs a browser session token, not your `gh` PAT.** Uploads go to GitHub's
+user-attachments CDN, which wants the same token a browser uses when someone
+drags an image into an issue; the extension extracts it from your browser by
+default. When it fails, `gh image check-token` verifies what it found and
+`gh image extract-token` prints it, or pass `GH_SESSION_TOKEN=<tok>` explicitly.
+If extraction cannot work in this environment, **say so** — do not quietly
+finish with the images unattached and the PR referencing nothing. Keep the run directory too — the PR section is a **view** of
 it, never a separate account. If they disagree, the run directory is right.
 
 - **State the final content only.** No revision markers, no "NEW:", no changelog

@@ -154,6 +154,13 @@ lie with a nice render.
 - A clean screen with a dirty console is a **finding**, not a footnote.
 - Drive the states that hide regressions: empty, loading, validation error,
   failure/forbidden, success. Regressions cluster in the non-happy states.
+- **Test the logged-out and first-run states in an isolated context, not by
+  logging out.** Signing out of the persistent profile destroys the
+  authenticated session the rest of the run depends on. Open a named isolated
+  context instead — `new_page {url, isolatedContext: "clean"}` — which shares no
+  cookies or storage with the default one, then come back to the default context
+  for the authenticated cases. This is how the "no credential" and "someone
+  else's id" probes get driven through a UI without wrecking the session.
 - **A modal, drawer, sheet or popover is its own surface with its own five
   states — drive them with the overlay open.** Satisfying "validation error"
   against the API, or against the page underneath, does not reach the overlay's
@@ -190,8 +197,15 @@ lie with a nice render.
   mid-transition is evidence of nothing. Element handles go stale after any DOM
   change; re-snapshot.
 - Pin the viewport for reproducibility, and **clear the emulation when you
-  finish** — it is sticky, and leaving it pins the user's own window. Do this
-  even when the run fails early.
+  finish** with `emulate {viewport: ""}`. The override is sticky: it outlives the
+  run and leaves the browser stuck at your screenshot width, so the user cannot
+  resize their own window. It is *their* browser — a profile they use for real
+  work — and a window pinned to 1440×900 is a side effect they did not ask for.
+  You can tell the clear landed because tool responses stop echoing the
+  `Emulating viewport: {...}` line and `window.innerWidth` matches the real
+  window again. Do it as the last step even when the run failed early — a run
+  that died halfway is exactly the one that forgets, and it leaves the browser in
+  the worst state.
 
 ## Databases
 

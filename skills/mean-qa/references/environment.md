@@ -15,6 +15,24 @@ cluster, namespace, service, port, auth · database host, reachability, and sche
 If a fact is neither configured nor discoverable, **ask one specific question**.
 One good question beats a wrong assumption that tests the wrong environment.
 
+## Finding the URL, rather than assuming it
+
+**Never assume a port.** `localhost:3000` is one convention among many — Vite
+serves 5173, plenty of stacks use 8080. Read it out of the repo: the `dev` and
+`start` scripts in `package.json`, the README, `vite.config` / `next.config`, the
+`.env`. Check the right branch is out before you start anything.
+
+For a PR the code is usually already deployed to a preview, built from the PR
+head — find it in the checks or a bot comment (`gh pr view <n> --json
+statusCheckRollup`, or `--comments`) and confirm the deploy is for *this* PR's
+latest commit rather than an earlier push. Staging is only the target when that
+is where the change actually landed, and staging often lags the branch.
+
+If nothing is running and it is a local server, start it in the background and
+wait until it is ready before navigating. If you cannot work out how the app is
+served, ask — a guessed URL tests nothing, or worse, tests something else
+convincingly.
+
 ## Prove the running code is the code under test
 
 This is the step everyone skips and it invalidates everything downstream.
@@ -55,10 +73,23 @@ navigating, confirm the expected user is logged in. If it is the wrong account o
 logged out, **stop and ask** — re-authenticating silently can land you on the
 wrong tenant and invalidate the whole run.
 
+**Whether the session persists at all is server configuration, not something you
+can fix mid-run.** The browser automation wants a persistent profile pinned to a
+known logged-in user — for the Chrome DevTools MCP that means launching it with
+`--user-data-dir <a dedicated dir>`, logging in there once, after which it
+survives across runs. `--isolated` does the exact opposite, a throwaway profile
+each time, so it must not be set; `--browser-url` is the alternative, attaching
+to a Chrome that is already running. If the profile is not persistent or not
+logged in, say so and point at the config — then re-run. Do not burn the run
+trying to authenticate your way out of it.
+
 ## Clean up, including on failure
 
-Port-forwards, probe pods, seeded rows meant to be temporary, viewport emulation.
-A run that ends early is exactly when cleanup is forgotten and the mess is worst.
+Port-forwards, probe pods, seeded rows meant to be temporary, viewport emulation,
+pages you opened, and any dev server you started — if you leave one running, say
+so and give the command to stop it, rather than leaving a port occupied and
+nobody knowing why. A run that ends early is exactly when cleanup is forgotten
+and the mess is worst.
 
 ## Persist what you learned
 
