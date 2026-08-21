@@ -12,6 +12,7 @@ If nothing will run against a real system, you should not be reading this file.
 | Idempotency | the second run producing no new effect, shown in rows or logs |
 | A trigger did its job | the worker's own log trail — receipt → decision → durable write → ack — with correlation ids |
 | A UI state | before and after screenshots, plus console and network for that interaction |
+| A layout or responsive change | before and after at **every width the change targets** — mobile and desktop at minimum, each width named in the filename |
 | Performance or access path | the plan, measured where the data volume is real |
 | An event was emitted | the publish line, **and an explicit note that emit ≠ delivered** unless you followed it to a bound consumer |
 
@@ -175,6 +176,16 @@ lie with a nice render.
   distinct screen and per state that hides regressions, passes included. The
   screens that worked are what turns "we tested this" into something a reader can
   check, and they cost one call each.
+- **If the change touches layout or responsiveness, capture every width it
+  targets — mobile and desktop at minimum.** A single desktop capture of a
+  responsive change proves the half you happened to look at. Layout regressions
+  live overwhelmingly at the narrow end: content overflowing its container, a
+  label wrapping onto two lines and pushing a control off-screen, a table that
+  scrolls the whole page instead of itself, a fixed element covering the thing it
+  sits beside. Pin each width explicitly — `resize_page` for a raw size,
+  `emulate` for a device profile — put the width in the filename so a reviewer
+  can tell the pair apart, and take before/after at each one. Then clear the
+  emulation, per the closing checks above.
 - Snapshot → act → **wait for the expected state** → capture. A screenshot taken
   mid-transition is evidence of nothing. Element handles go stale after any DOM
   change; re-snapshot.
