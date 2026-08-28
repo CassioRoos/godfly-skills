@@ -193,6 +193,17 @@ lie with a nice render.
   `emulate` for a device profile — put the width in the filename so a reviewer
   can tell the pair apart, and take before/after at each one. Then clear the
   emulation, per the closing checks above.
+  **Confirm the width landed before trusting the capture**: read
+  `window.innerWidth` after pinning; if a device profile did not apply (the
+  page still reports the desktop width), `resize_page` to the raw size instead.
+  A capture at a width you did not verify is not evidence of that width.
+- **At every narrow width, open every dialog, drawer and sheet and capture it
+  with its buttons in frame.** Narrow-viewport testing is a *reachability*
+  question about controls, not only an overflow question about tables. A
+  dialog authored with a `min-width` wider than the phone hides its own Cancel
+  and Confirm off-screen — on exactly the irreversible actions dialogs guard —
+  and the tables beside it can look fine. Oracle: a dialog must fit the
+  viewport it is shown in.
 - Snapshot → act → **wait for the expected state** → capture. A screenshot taken
   mid-transition is evidence of nothing. Element handles go stale after any DOM
   change; re-snapshot.

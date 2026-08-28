@@ -98,6 +98,19 @@ Work it out from what you are testing and use it. Only a path the user names
 explicitly overrides this; "where should I put the evidence?" is not a question
 worth spending their attention on.
 
+**Open the document before the first case, and grow it as you go.** The run
+directory and `PROOF.md` are created together, before anything executes — header,
+environment, a verdict line that reads `IN PROGRESS`, an empty results table. Every
+case that runs appends its row and its evidence block *then*, and every capture is
+embedded *then*, not collected for a closing write-up. The closing pass only rewrites
+the verdict, the worst-first list and the residual risk. Runs end early for reasons
+you do not control — a usage limit, an API error, a compacted context, a user who
+had to leave — and a run that writes its report last leaves twenty screenshots and
+thirty case folders with no document saying what they prove. A document that grows
+with the run is the only kind that survives the run being cut short; if it is cut
+short, the verdict line says so (`INCOMPLETE — stopped after case N`) instead of
+lying by absence.
+
 **Losing evidence is the one failure with no recovery.** A response you did not
 save, a screen you did not capture before you changed it, a query you ran and did
 not record — none of it can be reconstructed afterwards, because the state it
@@ -235,6 +248,10 @@ screenshots where they apply. A reviewer must be able to re-run any row without
 asking you a question. See [evidence.md](references/evidence.md) and
 [publishing.md](references/publishing.md).
 
+**The document already exists when you reach this section** — you opened it with
+the run directory and appended each case as it ran. Finishing means rewriting the
+verdict and the summary over a body that is already complete, not writing the body.
+
 **Every row in a results table has a matching evidence block. Count them before
 you finish.** Thirty rows means thirty blocks. A table that asserts results it
 does not back is worse than no table: it *looks* like proof, so nobody checks,
@@ -249,6 +266,16 @@ what should have happened, what did, *why* it does, and what it costs. If you
 could not determine the cause from outside, say that plainly — an honest "I
 could not tell whether this is the handler or the store" is useful; an invented
 cause is not.
+
+**The verdict is yours; acceptance is theirs.** A stakeholder can accept a risk —
+by name, with a date and a reason — and that acceptance goes into the document as
+its own recorded decision beneath the verdict. It never rewrites the verdict. A
+build with an unfixed fatal defect stays HOLD whoever signs; "SHIP, on <name>'s
+authority" is a decision record, not a test result, and the two must stay
+distinguishable to whoever reads the file after the incident. Authority, tenure,
+and "no complaints so far" are not evidence about the defect: say what the
+offered evidence can and cannot detect, offer the fastest route to a verdict you
+would sign, and leave the verdict where the evidence put it.
 
 If the summary and the detail disagree, the summary is wrong.
 
