@@ -4,6 +4,7 @@ Fixtures for running this skill through [gauntlet](../../gauntlet/SKILL.md).
 
 | File | What it is |
 |---|---|
+| `aqueduct/` | **Current fixture.** Water-utility billing console (Python stdlib + SQLite + plain HTML/JS) with 13 planted defects incl. UI-only and mobile-only ones, fabrication baits, and a signed-off-behaviour trap. `GROUND-TRUTH.md` is judge-only; `prompt-task.txt` is the naive arm prompt; `judge-prompt.md` the grading brief. Primary axis: **artifact production** (does the run leave `.proof/` + PROOF.md + screenshots on disk). Used by MQA-4 (2026-08-21) and MQA-5 (2026-08-27/28, Opus-only; see `CHANGELOG.md`). |
 | `clinical-fixture.md` | Inpatient medication ordering, **Go**. Eleven planted defects, an oracle bait, and fabrication baits. |
 | `clinical-fixture-ts.md` | The **same eleven defects in TypeScript/Node**. Use it to check that a change to the skill did not quietly overfit to one language. |
 | `clinical-rubric.md` | Ground truth for both. **Judge eyes only** — never show it to an arm under test. |

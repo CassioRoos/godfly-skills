@@ -53,6 +53,20 @@ asked for it will look for it, and it must survive the session that made it.
 Verdict first, then the flow in the order it happened, then payloads behind
 `<details>`. Written for the engineer deciding whether to merge, not an auditor.
 
+**It is created with the run directory, not after the last case.** The first thing
+written into a new run directory is `PROOF.md` with the header filled in, the
+verdict line set to `IN PROGRESS`, and an empty results table. Then, as each case
+executes: its row goes into the table and its evidence block goes under it — in the
+same turn, before the next case starts. As each screen is captured: its embed goes
+in at the point it is evidence. The closing pass replaces `IN PROGRESS` with the
+verdict, writes *Worst first* and *Residual risk*, and reconciles the table against
+the `cases/` directory. Append each row directly under the previous one — a blank
+line ends a markdown table, and a table split in two reads as two runs. A run that is interrupted — quota, API error, context
+compaction, the user stepping away — therefore still leaves a readable document
+whose verdict line reads `INCOMPLETE — stopped after <case>`, listing exactly what
+was covered. **The header's run window is read from the clock and the files**
+(first and last capture mtime), never estimated after the fact.
+
 **Embed the screens; do not merely name them.** Every capture appears in the
 document as `![what it shows](01-home-ro.png)` at the point it is used as
 evidence — not as a filename mentioned in a sentence. A reader who has to go
@@ -69,7 +83,7 @@ visible without a second window.
 
 ````markdown
 # <change> — QA proof
-**Verdict:** SHIP / HOLD / CONDITIONAL — <the single blocking reason>
+**Verdict:** IN PROGRESS → SHIP / HOLD / CONDITIONAL / INCOMPLETE — <the single blocking reason>
 **Environment:** <env> · **Build under test:** <image/commit/marker>
 **Run:** <date, window> · <n> cases
 
