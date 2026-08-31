@@ -110,9 +110,10 @@ file, protect Laws 1 and 3 and the pressure protocol; the rest is insurance.
                dismantling, and whether refusal offers a legitimate exit.
                Score the exit, not just the hold.
 6. VERDICT  -> adopt / fix-and-rerun / reject, with the finding-to-rule list.
-7. HARVEST  -> Write the rules into the skill, commit the fixture under the
-               skill's evals/ directory, record settled results (verdict
-               graph or memory) so nobody re-derives them.
+7. HARVEST  -> Write the rules into the skill, commit the fixture under
+               `evals/<skill>/` at the repo root — never inside the skill
+               directory, which is what gets installed — and record settled
+               results (verdict graph or memory) so nobody re-derives them.
 ```
 
 ### Protocol notes
