@@ -2,6 +2,16 @@
 
 If nothing will run against a real system, you should not be reading this file.
 
+## Contents
+- Every claim maps to a captured artifact
+- Attach requests and responses verbatim
+- Inline is for reading; files are for re-running — write both
+- Drive the browser through the DevTools MCP
+- Screenshots are files, or they never happened
+- The DOM is not the screen
+- A screenshot proves it rendered, not that it works
+- Databases · The staging trap · Classification
+
 ## Every claim maps to a captured artifact
 
 | Claim | What proves it |

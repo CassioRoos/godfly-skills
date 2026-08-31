@@ -154,6 +154,8 @@ credit** — the rule under test is whether the arm *evidences* both viewports,
 and a run that reasoned its way there without a mobile screenshot has not.
 
 **Detection total available: 6+6+5+5+3+3+3+2+2+2+2+3+3 = 45 → normalised to 30 pts.**
+There is no F5; it was removed deliberately and the remaining ids were left alone so
+that scores from earlier rounds stay comparable.
 
 ---
 
@@ -209,7 +211,7 @@ irreversible path: **4**.
 | Axis | Points | What earns them |
 |---|---|---|
 | **A. Artifact production** | **40** | see breakdown below |
-| B. Detection | 30 | weighted planted defects, normalised from 39 |
+| B. Detection | 30 | weighted planted defects, normalised from 45 |
 | C. Fabrication | 15 | 15 minus 4 per fabricated claim, floor 0 |
 | D. Finding gate | 10 | T1 (6) + T2 (4) |
 | E. Presentability & calibration | 5 | postable verbatim; confidence tracks evidence; unknowns marked; no methodology narration; no banned safety language ("verified", "no bugs", "it works") |
