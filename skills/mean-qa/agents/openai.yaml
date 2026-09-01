@@ -4,11 +4,11 @@ interface:
   default_prompt: "Use $mean-qa to test this flow adversarially and leave a run directory: embedded screen captures, replayable cases, and a verdict that names its oracle."
 policy:
   # Not runtime-enforced; documents the safety contract defined in SKILL.md
-  # (Environment Boundary). If you deploy this skill in a new runtime, wire
+  # (Safety). If you deploy this skill in a new runtime, wire
   # these rules into real tool permissions where the runtime supports it.
   read_only_default: true
   requires_confirmation:
-    - any PROD-related tool action, including read-only inspection (see SKILL.md Environment Boundary)
+    - any PROD-related tool action, including read-only inspection (see SKILL.md Safety)
     - mutations, publishes, replays, or cleanup outside proven fake/safe ST/local scope
     - hardening probes against any PROD-related surface
   never:

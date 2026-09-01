@@ -154,32 +154,29 @@ obvious cases, not after.
 Details, axes, and how to derive a harm model in an unfamiliar domain:
 [attack.md](references/attack.md).
 
-## Then the cheap probes — run every one, every time
+## Then the cheap probes — in blast-radius order, until the budget runs out
 
 The four questions find the interesting defects. These find the ones that are
 merely expensive, and they are the ones a campaign chasing interesting defects
-reliably walks past. They cost one request each. **Not optional, not "if time
-permits", and not satisfied by having thought about them.**
+reliably walks past. They cost one request each. The list in full — malformed
+bytes, wrong types, missing and extra fields, every client-supplied value the
+server should not trust, boundaries, the repeat and the concurrent repeat, the
+unhappy identities — is the table in [attack.md](references/attack.md).
 
-Against every endpoint that accepts input:
+**Order the input-accepting surfaces by what a defect there costs, then probe them
+in that order and stop when your budget runs out — not when the list does.** Every
+surface you did not reach is a `no` row in the coverage table, naming the probes it
+is missing. A run that probed the four surfaces that move money and recorded the
+read-only endpoints as unprobed is a complete run. A run claiming eight probes
+against twenty surfaces has either sampled silently or written rows it did not
+execute, and both are worse than the honest `no`.
 
-- **Malformed input** — send bytes that are not valid at all. Check the *error
-  contract*: is it a 4xx or did the parser leak a 5xx with an internal message?
-- **Wrong types** — a string where a number goes, a number where an object goes,
-  `null`, an array.
-- **Missing required fields**, and **unexpected extra fields**.
-- **Every client-supplied value the server should not trust** — timestamps, ids,
-  totals, statuses, actor labels. Set each to something absurd, then read the
-  record back and see what it stored.
-- **Boundaries** — zero, negative, empty string, one past the maximum, exactly
-  at the limit.
-- **Repeat the request** — twice, then concurrently.
-- **The unhappy identities** — no credential, someone else's id, an id that does
-  not exist.
+**Read the error contract, not just the status.** A 500 where a 400 belongs is a
+defect even when the request was nonsense — it means an unhandled path, and the
+body usually names an internal detail an attacker would like.
 
 An endpoint you called only with well-formed input has not been tested; it has
-been demonstrated. **A campaign that sent no malformed byte is incomplete —
-say so explicitly if you chose to skip it, and why.**
+been demonstrated.
 
 ## Then the ordinary discipline
 

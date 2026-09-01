@@ -1,6 +1,6 @@
 # Eval kit
 
-Fixtures for running this skill through [gauntlet](../../gauntlet/SKILL.md).
+Fixtures for running this skill through [gauntlet](../../skills/gauntlet/SKILL.md).
 
 | File | What it is |
 |---|---|

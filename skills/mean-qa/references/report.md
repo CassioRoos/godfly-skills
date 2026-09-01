@@ -34,6 +34,15 @@ of "the approval path", "the search screen" — not "here are all my screenshots
 here are all my queries". Each flow gets: what it is, a results table, the
 captured evidence, and prose explaining anything a table cannot carry.
 
+**This file is created with the run directory, not after the last case.** It opens
+with the header filled in, the verdict line at `IN PROGRESS`, and an empty results
+table. Each case's row and evidence block are appended as it runs, and each capture
+is embedded at the point it becomes evidence. The closing pass only rewrites the
+verdict, *Worst first* and *Residual risk*. A run cut short — a usage limit, an API
+error, a compacted context, a user who had to leave — therefore still leaves a
+readable document, its verdict line reading `INCOMPLETE — stopped after <case>`
+instead of lying by absence.
+
 ````markdown
 # <Feature or change> — QA report
 
@@ -41,7 +50,7 @@ captured evidence, and prose explaining anything a table cannot carry.
 for it. Written from the diff or the spec, not from the ticket title. A reader
 who knows nothing about this feature starts here and is oriented.>
 
-**Verdict:** SHIP / HOLD / CONDITIONAL — <one sentence, the single blocking reason>
+**Verdict:** IN PROGRESS → SHIP / HOLD / CONDITIONAL / INCOMPLETE — <one sentence, the single blocking reason>
 **Environment:** <env, base URL, how reached>
 **Build under test:** <image/tag/commit, or the marker that proved it>
 **Run:** <date, window> · <n> cases executed, <n> failed · fixtures <names>
@@ -189,14 +198,12 @@ Eleven cases means eleven request/response pairs. Not a table asserting they
 passed, not three representative samples. Collapse them behind `<details>` if the
 page needs to stay scannable — never summarise them away.
 
-Inline `<details>` makes each case *reviewable*. When there is a run directory,
-**also write each case's raw evidence to `cases/<case-id>/` as files** — the
-runnable request, the literal response, the direct read — so the run is
-browseable one-file-per-test and replayable by a machine, not only re-typable by
-a person. A reviewer should be able to run `cases/TC-01/request.sh` and get the
-recorded response without you present. Layout and the minimum-per-case in
-[evidence.md](evidence.md). The report's evidence column links each row to its
-`cases/<id>/` directory.
+Inline `<details>` makes each case *reviewable*; the files under `cases/<case-id>/`
+make it *replayable*. Write both when there is a run directory — a reviewer should
+be able to run `cases/TC-01/request.sh` and get the recorded response without you
+present. The per-case layout and its minimum contents are in the evidence
+reference. The report's evidence column links each row to its `cases/<id>/`
+directory.
 
 ## Designed-but-not-run reports
 

@@ -38,6 +38,10 @@ asked for it will look for it, and it must survive the session that made it.
 - **The time in the directory name is not optional.** Dropping it is the same
   overwrite by a slower route: the second run today lands on the first one and
   the earlier evidence is gone.
+- **Before the first write, confirm `.proof/` is ignored.** If `git check-ignore -q
+  .proof` fails and the tree is a git repo, append `.proof/` to `.gitignore` and say
+  so in the report. Evidence is for reviewers, not for history — a captured staging
+  payload committed to the tree is a disclosure, not an artifact.
 - Slug from the target, not the date. Reuse the run's directory while iterating;
   new directory for a new target or a later day.
 - **Images live at the run-directory root, numbered in capture order** — one flat
@@ -81,34 +85,10 @@ success — so a reader sees the surface that was covered and not only the place
 it broke. Before-and-after pairs sit next to each other, so what changed is
 visible without a second window.
 
-````markdown
-# <change> — QA proof
-**Verdict:** IN PROGRESS → SHIP / HOLD / CONDITIONAL / INCOMPLETE — <the single blocking reason>
-**Environment:** <env> · **Build under test:** <image/commit/marker>
-**Run:** <date, window> · <n> cases
-
-## Worst first
-1. **<plain-language failure title>** — <what happens, to whom>
-
-| # | Case | Expected | Result | Time | Evidence |
-|---|------|----------|--------|------|----------|
-| 1 | … | … | ✅ | 1.02s | [details](#1) |
-| 5 | … | … | ❌ | 0.28s | [BUG-…-004] |
-
-### 1 — <case>: HTTP 200 in 1.022992s
-<details><summary>request / response</summary>
-
-```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' "…"
-```
-```json
-{ … }
-```
-</details>
-
-## Residual risk
-- <what this run could not settle, as consequences rather than tasks>
-````
+**One template, not two.** The document's shape is the template in the report
+reference — already in context, since it is one of the four that always load. A run
+directory does not get a second format, and a second format is how a verdict
+vocabulary drifts. What this file adds is where the document lives and how it grows.
 
 Use ❌ rather than a silent omission for a case that failed — a missing row reads
 as a case that passed.
