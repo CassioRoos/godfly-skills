@@ -7,10 +7,9 @@ description: >
   and alternatives. Triggers on "what are the alternatives", "compare approaches",
   "which is better", "counterpoint", "other options", or any decision between multiple
   options. For ranking bug hypotheses during active debugging, use
-  troubleshooting-investigator's hypothesis table instead.
+  the hypothesis table in morpheus references/troubleshooting.md instead.
 metadata:
   version: "1.0"
-allowed-tools: Read, Grep, Glob, WebSearch
 ---
 
 # Analysis of Competing Hypotheses
@@ -33,13 +32,13 @@ The CIA developed ACH because analysts kept falling for confirmation bias -- fin
 
 ### Step 1: List All Plausible Hypotheses
 
-Generate 3-5 genuinely different approaches. Not strawmen -- real alternatives that a competent engineer might choose.
+Compare the genuinely credible approaches; 3-5 is a useful default, not a minimum. Two may be enough. Do not invent alternatives to fill a quota.
 
 Rules:
-- Each must be a REAL approach (used in production somewhere)
+- Each must be technically credible; cite real use when available and label unproven approaches rather than inventing production precedent.
 - Include the user's proposed approach
-- Include at least one approach the user probably hasn't considered
-- Include the "do nothing" or "simplest possible" option
+- Look for a materially different option the user may not have considered; include it only if credible.
+- Consider "do nothing" or "simplest possible"; explain if constraints rule it out.
 
 ### Step 2: List All Evidence
 
@@ -108,13 +107,9 @@ When building the matrix, pay special attention to:
 | **Anchoring** on the first approach | Always generate the full list BEFORE evaluating |
 | **Strawman** alternatives | Each alternative must be one a competent engineer would actually choose |
 | **Confirmation bias** | Count contradictions, not supports |
-| **Missing the simple option** | Always include "do nothing" or "simplest possible" |
+| **Missing the simple option** | Consider the baseline; state why it is viable or ruled out |
 | **Ignoring context** | Team skill, timeline, and existing code are valid evidence |
 
 ## Detailed Technique
 
 Read [cookbook/diagnostic-matrix.md](./cookbook/diagnostic-matrix.md)
-
----
-
-Evidence standards: follow the [evidence-grounding](../evidence-grounding/SKILL.md) skill — the canonical source for evidence tiers, quality gates, and the counter-evidence obligation.

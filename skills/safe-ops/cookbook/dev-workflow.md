@@ -1,166 +1,73 @@
-# Dev Workflow Operations
+# Git, CI and PRs
 
-Safe patterns for Git, CI/CD, and PR management.
+Apply the authorization policy in ../SKILL.md. Routine authorized Git work
+gets one short preview, not approval at every command.
 
-## Git Operations
+## Local commit
 
-### Read State (L1)
-```bash
-git status
-git log --oneline -20
-git diff
-git diff --cached
-git branch -a
-git remote -v
-git stash list
+Read status, unstaged diff and cached diff. Preserve unrelated dirty files and
+index entries. Stage only named files/hunks belonging to this task; never
+`git add -A` by default. If a commit would include unrelated staged work,
+isolate the intended commit safely or ask; do not unstage someone else's work.
+Inspect the actual staged patch before committing. Run required baseline and
+post-change tests. A commit does not authorize push. No Co-Authored-By trailer.
+
+## Fast-forward push
+
+1. Resolve repository, remote and destination branch. Inspect upstream and
+   branch protection/CI side effects as relevant; do not assume origin/main.
+2. Pin the current local SHA and fetch/query the exact destination. Show the
+   commits and diff from its observed SHA to the proposed SHA. A new branch
+   uses its intended base; say that the remote ref does not exist yet.
+3. With existing push authorization, push the explicit SHA to the exact ref:
+   `git push <remote> <new-sha>:refs/heads/<branch>`.
+   A normal push preserves the non-fast-forward rejection guard.
+4. Read back `git ls-remote <remote> refs/heads/<branch>` and compare the SHA.
+   A rejected push is not permission to force, rebase published work or merge
+   someone else's changes automatically.
+
+## Merge preview
+
+Use `git merge-tree --write-tree <base-sha> <topic-sha>` for supported Git
+versions; exit 1 is conflict evidence. Read the output. This may add objects but
+leaves HEAD/index/worktree untouched. A diff alone is not a conflict test.
+Never merge into the user's checkout just to preview, and do not automatically
+stash/switch their dirty tree. Use an isolated worktree if deeper checks need it.
+
+## History rewrite or rollback
+
+Capture and show exact old/new SHAs, affected commits, target, impact and
+recovery before requesting approval of a rewrite. Preserve the old commit.
+Use an explicit lease, never --force or a +refspec:
+
+```sh
+git push --force-with-lease=refs/heads/<branch>:<expected-old-sha> <remote> <new-sha>:refs/heads/<branch>
 ```
 
-### Local Changes (L2)
-```bash
-# Staging & commits
-git add <specific-files>           # Prefer specific files over -A
-git commit -m "<message>"
+If an approved rollback must restore the captured old SHA:
 
-# Branching
-git checkout -b <branch>
-git stash push -m "<description>"
-git stash pop
-
-# Preview: always show what's being committed
-git diff --cached --stat
+```sh
+git push --force-with-lease=refs/heads/<branch>:<expected-new-sha> <remote> <captured-old-sha>:refs/heads/<branch>
 ```
 
-### Remote Operations (L3)
-```bash
-# Preview: show what will be pushed
-git log origin/<branch>..HEAD --oneline
-git diff origin/<branch>..HEAD --stat
+These are templates, not executable commands until exact values are resolved.
+Read back the remote after either operation. Lease rejection requires a new
+inspection; never replace the expected SHA merely to get the push through.
+Prefer a revert for shared history; that changes code and needs its own proof.
+Hard reset/deletion also needs loss inventory, including untracked/ignored data.
+Do not claim a plain stash backs up everything.
 
-# Confirm, then push
-git push origin <branch>
+## PRs, CI and releases
 
-# PR creation
-gh pr create --title "<title>" --body "<body>" --draft
-
-# Merge (show what changes first)
-gh pr diff <number>
-gh pr merge <number> --squash
-```
-
-### Destructive Git (L4)
-```bash
-# Force push — ALWAYS confirm target branch
-# Preview: show what will be overwritten
-git log HEAD..origin/<branch> --oneline  # Commits that will be LOST
-
-# Present rollback: "git push origin +<current-sha>:<branch>"
-# Confirm with explicit branch name
-
-# Hard reset — show what will be lost
-git diff HEAD..<target> --stat
-git stash push -m "backup before reset"  # Safety backup
-```
-
-### Branch Protection Rules
-- NEVER force push to main/master without explicit user override
-- ALWAYS check if branch has open PRs before deleting
-- ALWAYS check if branch is ahead of remote before resetting
-
-## CI/CD Operations
-
-### View Pipeline Status (L1)
-```bash
-gh run list --limit 10
-gh run view <run-id>
-gh run view <run-id> --log-failed
-```
-
-### Trigger Pipelines (L3)
-```bash
-# Preview: show what will be triggered
-gh workflow list
-gh workflow view <workflow>
-
-# Confirm workflow + branch, then trigger
-gh workflow run <workflow> --ref <branch>
-
-# Re-run failed
-gh run rerun <run-id> --failed
-```
-
-### Cancel Pipelines (L3 — remote operation)
-```bash
-# Preview: show running workflows
-gh run list --status in_progress
-
-# Cancel specific run
-gh run cancel <run-id>
-```
-
-## PR Management
-
-### Review (L1)
-```bash
-gh pr list
-gh pr view <number>
-gh pr diff <number>
-gh pr checks <number>
-```
-
-### Create & Update (L3)
-```bash
-# Preview: show what will be in the PR
-git log origin/main..HEAD --oneline
-git diff origin/main..HEAD --stat
-
-# Create
-gh pr create --title "<title>" --body "<body>"
-
-# Comment
-gh pr comment <number> --body "<comment>"
-
-# Request review
-gh pr edit <number> --add-reviewer <user>
-```
-
-### Close & Delete (L3-L4)
-```bash
-# Close PR (L3) — reversible
-gh pr close <number>
-
-# Delete branch after merge (L3) — check first
-gh pr view <number> --json mergedAt,headRefName
-
-# Delete remote branch (L4) — confirm, show rollback
-git ls-remote --heads origin <branch>
-# Rollback: git push origin <sha>:<branch>
-```
-
-## Release Operations
-
-### View (L1)
-```bash
-gh release list
-gh release view <tag>
-```
-
-### Create (L3)
-```bash
-# Preview: show what will be in the release
-git log <previous-tag>..HEAD --oneline
-
-# Confirm tag + target, then create
-gh release create <tag> --title "<title>" --notes "<notes>"
-```
-
-### Delete (L4)
-```bash
-# Preview: show release details
-gh release view <tag>
-
-# Backup release notes before deleting
-gh release view <tag> --json body -q '.body' > /tmp/release-<tag>-backup.md
-
-# Confirm, then delete
-gh release delete <tag>
-```
+- Reading PR state/checks is not publishing. Pin all conclusions to current
+  head SHA; stale green checks cannot validate a newer head.
+- If requested to create/update a PR, show the destination and content scope,
+  then publish without another generic approval. Preserve unrelated body text,
+  use an exact body file, and read back the result.
+- A PR, green CI or MERGEABLE is neither merge authorization nor release proof.
+  Merge/tag/release/deploy are separate actions; check exact head, dependencies,
+  review state and relevant protections before an authorized merge.
+- Re-run/cancel CI only for named runs/workflows and refs within authority.
+  Discover their side effects; do not blindly retry a deployment workflow.
+- Remote deletion needs the exact ref, retained SHA, dependent PR/work check,
+  approval of the deletion preview, and read-back of absence.

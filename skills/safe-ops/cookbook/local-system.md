@@ -14,56 +14,41 @@ stat <path>
 ```
 
 ### Create / Edit (L2)
+
+Use scoped repository edits normally. Before copy, move or rename, inspect the
+exact source and destination. A destination that exists is not a backup slot:
+stop or choose a new unique slot; never silently overwrite it.
+
+### Bulk cleanup (L3-L4)
+
+Resolve and show exact task-owned targets first. Never flatten a set of files
+into one dated directory: duplicate basenames overwrite each other.
+
+For **quiescent regular files**, use the bundled Python 3 helper:
+
 ```bash
-# Create directories
-mkdir -p <path>
-
-# Copy with backup
-cp <source> <dest>
-
-# Move (preview path first)
-ls -la <source>
-mv <source> <dest>
+python3 <skill-dir>/scripts/safe-trash.py /absolute/backup-parent /absolute/a/notes.txt /absolute/b/notes.txt
+# After approval of those exact targets and recovery location:
+python3 <skill-dir>/scripts/safe-trash.py /absolute/backup-parent /absolute/a/notes.txt /absolute/b/notes.txt --apply
 ```
 
-### Bulk Operations (L3-L4)
+Preview is read-only. Apply creates a unique private run directory, saves original
+paths and SHA-256 digests, copies each file to its own slot, verifies it and only
+then removes the source. Missing/nonregular/duplicate sources fail preflight.
+Requires enough backup space. After helper changes, run
+`python3 <skill-dir>/scripts/acceptance.py` (isolated fixtures). This is not an atomic snapshot of files with active
+writers; stop writers or use the platform's supported snapshot/backup facility.
 
-**Bulk rename (L3):**
-```bash
-# Preview: show what will be renamed
-for f in <pattern>; do echo "$f -> ${f/old/new}"; done
+On failure, preserve the reported recovery directory, inspect its map and
+payloads plus remaining originals, and stop. Never delete a backup on error.
+To restore, verify each payload digest and original path from `restore-map.json`;
+copy it back only if the original is absent. Resolve conflicts explicitly.
+Backups containing secrets stay private and out of Git and shared logs.
 
-# Confirm, then execute
-for f in <pattern>; do mv "$f" "${f/old/new}"; done
-```
-
-**Bulk delete (L4):**
-```bash
-# Preview: list files and count
-find <path> -name "<pattern>" -type f
-find <path> -name "<pattern>" -type f | wc -l
-
-# Safety: move to trash instead of rm when possible
-mkdir -p /tmp/trash-$(date +%Y%m%d)
-find <path> -name "<pattern>" -type f -exec mv {} /tmp/trash-$(date +%Y%m%d)/ \;
-
-# Rollback: "Files are in /tmp/trash-<date>/, move them back"
-```
-
-**Recursive delete (L4):**
-```bash
-# Preview: show tree
-find <path> -maxdepth 2 | head -50
-
-# Show total size
-du -sh <path>
-
-# NEVER rm -rf without explicit path confirmation
-# Prefer: move to trash, then delete trash later
-mv <path> /tmp/trash-$(date +%Y%m%d)/
-
-# Rollback: "mv /tmp/trash-<date>/<name> <original-path>"
-```
+For directories, inspect the exact tree and archive requirements separately.
+Use a unique private destination outside the source tree and retain an original
+path map. Verify preservation before removal. Do not pass a broad root, home,
+workspace root, unresolved variable or glob to a recursive delete.
 
 ## Process Management
 
@@ -106,27 +91,27 @@ lsof -i :<port> -t  # Show PIDs
 lsof -i :<port>     # Show full details
 
 # Confirm, then kill
-kill $(lsof -i :<port> -t)
+kill <verified-pid>
+# Recheck identity/owner immediately before stopping; do not reselect every PID
+# on the port after approving a different preview.
 ```
 
 ## Environment Management
 
 ### View (L1)
 ```bash
-env | grep <pattern>
-echo $<VAR>
-cat .env              # Check for secrets before displaying!
+# Inspect variable names/presence through a parser without displaying values.
+# Never dump env, .env, credentials or browser-token stores.
 ```
 
 ### Modify (L2 local, L3 shared)
 ```bash
 # Local .env changes (L2)
-# Preview: show current value
-grep <VAR> .env
+# Preview: name the key and intended non-secret effect; never print its value.
 
 # Edit with backup
-cp .env .env.backup.$(date +%Y%m%d)
-# Then modify
+# Copy into a fresh private backup directory, verify it, then modify.
+# Do not use a same-day filename that can overwrite the previous backup.
 
 # Shell environment (L2 — session only)
 export <VAR>=<value>
@@ -138,7 +123,7 @@ export <VAR>=<value>
 - When showing env vars, redact sensitive values:
   ```
   DATABASE_URL=postgres://user:****@host:5432/db
-  API_KEY=sk-****...last4
+  API_KEY=[REDACTED]
   ```
 
 ## Dependency Management
@@ -221,12 +206,13 @@ docker system df
 ### Temp Files (L4 — recursive delete)
 ```bash
 # Preview: show age and size
-find /tmp -maxdepth 1 -mtime +7 -exec ls -la {} \;
+find /tmp -mindepth 1 -maxdepth 1 -mtime +7 -exec ls -ld {} \;
 
 # rm -rf is L4 by definition: explicit confirm + rollback plan required.
-# Prefer the reversible path: move to a dated trash dir, delete later.
-mkdir -p /tmp/trash-$(date +%Y%m%d)
-find /tmp -maxdepth 1 -mtime +7 -not -name 'trash-*' -exec mv {} /tmp/trash-$(date +%Y%m%d)/ \;
+# Prefer a unique recoverable archive; do not flatten paths.
+# Resolve exact task-owned directories from the preview; obtain approval.
+# Move only those named paths to a unique backup, preserving their locations.
+# Do not execute a broad age-based move over /tmp.
 
-# Rollback: "mv /tmp/trash-<date>/<name> <original-path>"
+# Recovery: verify the original-path map and payload before restoring.
 ```

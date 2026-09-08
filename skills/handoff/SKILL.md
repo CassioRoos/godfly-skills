@@ -1,11 +1,12 @@
 ---
 name: handoff
 description: >
-  Create a compact handoff document for another agent session to continue
+  Create a compact handoff document for another Codex session or agent to continue
   the work. Use when the user asks for a handoff, next-agent context, continuation
   note, session summary, resume brief, or wants another agent to pick up without
   reconstructing the thread.
 metadata:
+  author: croos
   version: "1.0"
 ---
 
@@ -16,7 +17,7 @@ Write a handoff that lets a fresh agent continue without spelunking the entire c
 ## Workflow
 
 1. Identify what the next session will do. If the user gave a focus, tailor the handoff to that.
-2. Save the handoff outside the current repository in a durable location: `~/.agent-handoffs/` (create it if missing), named `<YYYY-MM-DD>-<short-slug>.md`. Never use the OS temporary directory — a handoff that must survive into a future session cannot live somewhere the OS wipes.
+2. Save the handoff outside the current repository in a durable location: `~/.codex/handoffs/` (create it if missing), named `<YYYY-MM-DD>-<short-slug>.md`. Never use the OS temporary directory — a handoff that must survive into a future session cannot live somewhere the OS wipes.
 3. Include only operationally useful context. Do not duplicate artifacts that already exist; reference paths, PRs, commits, docs, logs, or notebooks instead.
 4. Redact secrets, tokens, credentials, private personal data, and unnecessary customer data.
 5. Include suggested skills and why they should be used.

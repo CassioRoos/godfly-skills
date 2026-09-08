@@ -15,7 +15,9 @@ if [ ! -f "$STATE" ]; then
   exit 1
 fi
 
-if grep -qE '_\(not yet written\)_|Replace this placeholder during orient' "$STATE"; then
+# Only the sentinel counts. The template's instructional blockquote may stay:
+# matching its prose failed correctly-filled Understandings.
+if grep -qF '_(not yet written)_' "$STATE"; then
   echo "assert-started: FAIL — Understanding still template in $STATE" >&2
   echo "  orient before proposing. Fill exists (file:line), assumptions (rated), unverified." >&2
   exit 1

@@ -1,7 +1,6 @@
 ---
 name: devils-advocate
-description: "Argue the opposing position: construct the strongest possible case for the alternative or against a pending decision. Use for make the case for NOT doing this, argue the other side, steelman the alternative, what would critics say. Produces an opposing-counsel brief, not a code review. For evidence-based critique of your own work, plans, or PRs use godfly; for attack-path and launch-readiness review use red-blue-review; for imagining failure before starting use premortem-postmortem."
-allowed-tools: Read
+description: "Argue the opposing position: construct the strongest possible case for the alternative or against a pending decision. Use for make the case for NOT doing this, argue the other side, steelman the alternative, what would critics say. Produces an opposing-counsel brief, not a code review. For evidence-based critique of your own work, plans, or PRs use morpheus; for attack-path and launch-readiness review use red-blue-review; for imagining failure before starting use premortem-postmortem."
 ---
 
 # Devil's Advocate - Opposing Counsel
@@ -63,14 +62,10 @@ The brief is adversarial; the verdict is not. Step out of role and answer:
 
 ## Not This Skill's Job
 
-- **Critiquing your own work, plans, or PRs** - that's evidence-based review, use **godfly**
+- **Critiquing your own work, plans, or PRs** - that's evidence-based review, use **morpheus**
 - **Attack-path and launch-readiness review** - use **red-blue-review**
 - **Imagining failure before starting a project** - use **premortem-postmortem**; if you need help making the failure scenario vivid, see [cookbook/pre-mortem.md](./cookbook/pre-mortem.md)
 
 ## The Right Mindset
 
 Devil's advocacy is an act of care, not contrarianism. If the decision is right, it deserves to win against the strongest opposition available - and if it's wrong, better to lose the argument now than the quarter later. The goal is never to kill decisions; it's to make sure the ones that survive deserved to.
-
----
-
-Evidence standards: follow the [evidence-grounding](../evidence-grounding/SKILL.md) skill — the canonical source for evidence tiers, quality gates, and the counter-evidence obligation.

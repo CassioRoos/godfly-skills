@@ -1,9 +1,9 @@
 # Publishing — where a run's evidence goes
 
-Evidence nobody finds is evidence nobody used. **If you executed anything, this
-file applies**: a run that touched a real system leaves a run directory, so there
-is no version of an executed campaign that skips this. Skip it only for a
-designed-but-not-run campaign, which by definition captured nothing.
+Read this file only for externally publishing evidence. Local proof is mandatory
+for every campaign under SKILL.md, including blocked/planning-only work, and does
+not require publication. Bootstrap it with `scripts/start-proof.sh` before probes.
+Publishing is optional and separately authorized: a PR's existence is not consent.
 
 ## A repo convention beats this file — on repo facts
 
@@ -38,10 +38,6 @@ asked for it will look for it, and it must survive the session that made it.
 - **The time in the directory name is not optional.** Dropping it is the same
   overwrite by a slower route: the second run today lands on the first one and
   the earlier evidence is gone.
-- **Before the first write, confirm `.proof/` is ignored.** If `git check-ignore -q
-  .proof` fails and the tree is a git repo, append `.proof/` to `.gitignore` and say
-  so in the report. Evidence is for reviewers, not for history — a captured staging
-  payload committed to the tree is a disclosure, not an artifact.
 - Slug from the target, not the date. Reuse the run's directory while iterating;
   new directory for a new target or a later day.
 - **Images live at the run-directory root, numbered in capture order** — one flat
@@ -85,10 +81,34 @@ success — so a reader sees the surface that was covered and not only the place
 it broke. Before-and-after pairs sit next to each other, so what changed is
 visible without a second window.
 
-**One template, not two.** The document's shape is the template in the report
-reference — already in context, since it is one of the four that always load. A run
-directory does not get a second format, and a second format is how a verdict
-vocabulary drifts. What this file adds is where the document lives and how it grows.
+````markdown
+# <change> — QA proof
+**Verdict:** IN PROGRESS → SHIP / HOLD / CONDITIONAL / INCOMPLETE — <the single blocking reason>
+**Environment:** <env> · **Build under test:** <image/commit/marker>
+**Run:** <date, window> · <n> cases
+
+## Worst first
+1. **<plain-language failure title>** — <what happens, to whom>
+
+| # | Case | Expected | Result | Time | Evidence |
+|---|------|----------|--------|------|----------|
+| 1 | … | … | ✅ | 1.02s | [details](#1) |
+| 5 | … | … | ❌ | 0.28s | [BUG-…-004] |
+
+### 1 — <case>: HTTP 200 in 1.022992s
+<details><summary>request / response</summary>
+
+```bash
+curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' "…"
+```
+```json
+{ … }
+```
+</details>
+
+## Residual risk
+- <what this run could not settle, as consequences rather than tasks>
+````
 
 Use ❌ rather than a silent omission for a case that failed — a missing row reads
 as a case that passed.
@@ -101,24 +121,22 @@ omitted risk discounts everything else, permanently.
 
 ## Onto a PR
 
-Upload the images, then write the verification section into the PR body. A
-repo's own tooling wins if it has any; failing that, `gh image` (the
-`drogers0/gh-image` extension) takes paths directly — there is no `upload`
-subcommand — and prints the `![](…)` markdown refs to stdout for you to paste:
+Only when the user's request or existing approval includes uploading evidence
+and modifying the named PR, preview the target/content scope, upload the selected
+sanitized images, then update the verification section without overwriting
+unrelated text. Reuse that authorization; do not ask again unless scope changes.
+If only local QA is requested, stop at the local proof link. Prefer the repo's
+supported authenticated uploader or user-driven attachment flow. Confirm its
+actual tool availability and authentication behavior before running it; no
+uploader or browser-cookie extraction path is assumed.
 
-```bash
-gh image <path>...                    # repo inferred from the git remote
-gh image --repo owner/repo <path>...  # or pin it
-```
-
-**It needs a browser session token, not your `gh` PAT.** Uploads go to GitHub's
-user-attachments CDN, which wants the same token a browser uses when someone
-drags an image into an issue; the extension extracts it from your browser by
-default. When it fails, `gh image check-token` verifies what it found and
-`gh image extract-token` prints it, or pass `GH_SESSION_TOKEN=<tok>` explicitly.
-If extraction cannot work in this environment, **say so** — do not quietly
-finish with the images unattached and the PR referencing nothing. Keep the run directory too — the PR section is a **view** of
-it, never a separate account. If they disagree, the run directory is right.
+Use only an installed uploader's documented, authorized authentication flow.
+Inspect non-secret help/status first; do not run credential extraction commands,
+print tokens/cookies, inspect browser credential stores, or ask the user to paste
+a session secret. If the uploader requires unsupported credential access, leave
+publishing BLOCKED and offer user-driven upload; local proof remains complete.
+Do not claim attachments were published without reading back the actual PR and
+checking its links. The PR is a view of the local evidence, not a replacement.
 
 - **State the final content only.** No revision markers, no "NEW:", no changelog
   inside a description. Git already tracks history.

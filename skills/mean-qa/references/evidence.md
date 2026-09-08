@@ -1,266 +1,106 @@
-# Evidence — only when you are actually executing
+# Evidence capture
 
-If nothing will run against a real system, you should not be reading this file.
+Create/read back the initial proof under SKILL.md before any probes. Persist
+sanitized evidence as it is produced; collect enough to support the claim, not
+unbounded traffic unrelated to the case. Never retain secrets or personal data.
 
-## Contents
-- Every claim maps to a captured artifact
-- Attach requests and responses verbatim
-- Inline is for reading; files are for re-running — write both
-- Drive the browser through the DevTools MCP
-- Screenshots are files, or they never happened
-- The DOM is not the screen
-- A screenshot proves it rendered, not that it works
-- Databases · The staging trap · Classification
+## Case-to-artifact contract
 
-## Every claim maps to a captured artifact
+Every executed case has a stable ID and a report block linking to its files:
 
-| Claim | What proves it |
-|---|---|
-| An endpoint behaves | the request as issued, the literal response body, the status, the duration — per case, happy and adversarial |
-| A durable side effect happened | **the direct read** — the query and its literal output. The API's echo of what it stored is not evidence that it stored it |
-| Something did *not* happen | the query that came back empty, with its time window. An absence with no artifact is an assertion |
-| Idempotency | the second run producing no new effect, shown in rows or logs |
-| A trigger did its job | the worker's own log trail — receipt → decision → durable write → ack — with correlation ids |
-| A UI state | before and after screenshots, plus console and network for that interaction |
-| A layout or responsive change | before and after at **every width the change targets** — mobile and desktop at minimum, each width named in the filename |
-| Performance or access path | the plan, measured where the data volume is real |
-| An event was emitted | the publish line, **and an explicit note that emit ≠ delivered** unless you followed it to a bound consumer |
-
-## Attach requests and responses verbatim
-
-The literal call — copy-pasteable, secrets redacted — the literal body, the
-status, and the wall-clock duration. Not a paraphrase, not a "sanitised shape".
-A summary table alone is not evidence a reviewer can re-check.
-
-```bash
-curl -sS -w '\nHTTP %{http_code} in %{time_total}s\n' "<url>"
-```
-
-**Every executed case gets its own block. All of them.** Eleven cases means
-eleven requests and eleven responses in the document — not a table saying they
-passed, and not three representative examples. The payloads are the deliverable's
-whole value to a reviewer, and the reason to collapse them behind `<details>` is
-scannability, never economy. Volume of *evidence* is a virtue; volume of *prose
-about testing* is not.
-
-**Trim inside a body honestly, never silently.** A long array becomes the first
-few elements, an explicit `... (N more)` marker, and the last one — so the reader
-sees the shape, the boundaries, and exactly what was elided. Never drop a case's
-payload entirely to save room.
-
-## Inline is for reading; files are for re-running — write both
-
-The `<details>` block in the report makes a case *reviewable*: a human reads it
-and can re-run it by hand. That is necessary and not sufficient. When there is a
-run directory, **also write each executed case's raw evidence to
-`cases/<case-id>/` as files** — so the run is browseable one-file-per-test and
-the artifacts can be replayed by a machine, not just re-typed by a person.
-
-Per executed case, minimum on disk:
-
-```
+```text
 cases/TC-01/
-  request.sh          the exact call, copy-pasteable and runnable as-is
-  response.json       the literal body (or response.txt for non-JSON), with the status line
-  db-read.txt         the direct read that verifies persistence — query + literal output
-  notes.md            one line: what it proves, and the reproduced count
+  request.sh or steps.md     exact sanitized command or browser steps
+  response.json or stdout.txt
+  stderr.txt                when applicable, including failed commands
+  db-read.txt               when persistence is part of the claim and access is available
+  console.txt / network.txt when supported for a UI interaction
+  notes.md                  expected/observed, status, timing, exit code, build, gaps
 ```
 
-For UI cases the images themselves live at the run-directory root, numbered in
-capture order, and this directory's `notes.md` names which of them belong to the
-case — one flat image sequence beats copies scattered per case. The console and
-network capture for the interaction goes here. A case that genuinely retained
-nothing writes `notes.md` saying why, and its status is `unproven` — an empty
-directory never implies a green.
+Only create applicable files; never fill empty placeholders to simulate coverage.
+Include passing and failed cases. A blocked case records the prerequisite and
+coverage not reached. A row without retained proof is unproven, not passed.
 
-The rule that makes this worth the keystrokes: **a reviewer should be able to run
-`cases/TC-01/request.sh` and get the recorded response, without you in the room.**
-Inline evidence proves you ran it; the file lets them run it. The report links
-each row to its `cases/<id>/` directory.
+Capture complete relevant sanitized requests/responses and output on disk;
+the report carries decisive excerpts, observations and links, not duplicate
+copies of every large body. Explicitly label redaction and any collection
+limit/truncation. Replay scripts reference user-provided auth safely; they must
+not embed secrets, auto-load arbitrary environments or auto-repeat a dangerous
+mutation. Replay always remains subject to current authorization.
 
-An executed run has a run directory — you derive it from the app or service
-under test and you do not ask permission for it. The only case with nowhere to
-write is one where writing was actually refused, and then you say so plainly,
-name the path that was refused, and keep the inline `<details>` as the whole of
-it: reviewable, not replayable, and explicitly labelled as such. "It felt like a
-quick check" is not that case.
+| Claim | Required evidence |
+|---|---|
+| Endpoint behavior | Actual request, response, status and wall-clock duration |
+| Persistence | Direct durable-state query and result, not only the API echo |
+| Absence of effect | Bounded query with filters and time window; note retention/sampling limits |
+| Idempotency | Repeated request plus durable count/effect, including ambiguous outcomes |
+| Worker completion | Correlated receipt → decision → write → ack; publishing alone is not delivery |
+| UI behavior | Browser-driven steps, rendered before/after states and available console/network |
+| Performance | Actual query/parameters, volume/load, build and environment; staging is not production-scale proof |
 
-**Sanitisation is scoped.** Credentials, tokens, cookies, private URLs and
-personal data never get written, anywhere. But a seeded fixture's payload on a
-local or staging box is exactly what convinces a reviewer — reducing it to a
-"shape" throws away the point. Prefer synthetic fixtures so artifacts are safe
-to keep. Redact on the way in, never afterwards.
+## Browser provider: discover, do not assume
 
-## Drive the browser through the DevTools MCP
+Use the user's named browser and the currently exposed browser tools. In a CUA
+session, follow the required first-call entry point and read the returned API
+documentation. Only call methods actually documented there. If Chrome DevTools
+MCP is genuinely installed, its own documented API is an alternative, not a
+prerequisite. Never invent `take_screenshot`, `resize_page`, isolated-context
+options or console/network methods on a different provider.
 
-When a UI is in scope, prefer the Chrome DevTools MCP over hand-rolled
-automation. It is the safer and more controllable path: every step is a discrete
-call you decide on one at a time, and the same attached session gives you the
-accessibility snapshot, clicks and form fills, `filePath` screenshots, console
-messages, network requests, `evaluate_script` for computed state, a pinned
-viewport and an explicit wait — exactly the set a UI case needs in order to be
-evidenced. A throwaway Playwright or Puppeteer script buys you nothing here and
-costs you the per-step control; and `curl` against the page's endpoints is not a
-UI test at all, because nothing renders and so nothing the browser would have
-shown you can be seen.
+Before driving the flow, establish which channels can be captured and persisted:
+rendered screenshots, accessibility/DOM state, console, network, viewport,
+isolated identities. Record unsupported channels as unavailable. A screenshot
+does not establish a clean console; an API call does not establish rendered UI.
 
-Reach for something else only where the MCP genuinely cannot go — a second
-concurrent browser, a browser it is not attached to, load generation — and say in
-the report which tool produced which evidence.
+Test one screenshot save/export to the proof directory using supported APIs,
+and verify the resulting file is readable. If a provider returns only an inline
+image, use its documented export/save mechanism; if unavailable, declare the
+persistence gap and retain supported evidence. Do not invent an image path or
+claim a transcript-only image is on disk. Route a refused write only to a
+permitted persistent location, then verify the copy.
 
-## Screenshots are files, or they never happened
+Never bypass provider restrictions with hidden browser state, cookie extraction,
+undocumented APIs or ad-hoc automation. Do not edit browser configuration or
+switch profiles/accounts without authorization.
 
-A browser-automation screenshot returns the image **into the conversation**
-unless you pass an explicit output path — in the Chrome DevTools MCP, `filePath`
-on `take_screenshot`, documented as saving "instead of attaching it to the
-response". The default therefore produces no artifact at all. Pass the path,
-every time.
+## UI evidence that matters
 
-**Probe a writable path before you drive anything.** Screenshot writes are
-enforced against the automation server's own workspace root, which is not your
-working directory and is frequently narrower than it — a path outside that root
-is refused with an access-denied error naming "workspace roots". Take one
-throwaway capture into your intended run directory before the first real step.
-If it is refused, find a permitted directory, capture there, and move each file
-into the run directory as you go. Discovering this at the end of a run is how
-pre-change states are lost for good.
+- Observe current state → act → wait for expected state → capture. Use fresh
+  locators after state changes; don't count a transition frame as final proof.
+- Capture before/after for changes and every distinct tested state: empty,
+  loading, validation error, forbidden/failure, success. Include healthy screens.
+- Console/network errors must be correlated with the step and investigated;
+  unrelated historical errors are not automatically product defects.
+- The DOM is not the screen. Check visible rendering for clipping, overlap,
+  toast-behind-modal, text contrast and reachable buttons.
+- For responsive changes, test the named widths and verify the actual viewport
+  through supported inspection. Capture overlays with action buttons in frame.
+  If viewport controls are unavailable, do not label desktop shots "mobile".
+- Test logged-out/other-identity states only through a supported, authorized
+  isolated context. Never destroy the user's session by logging out.
+- Collect console/network after meaningful steps when supported; note any
+  redaction, sampling or missing channel.
+- Keep screenshots numbered at the run root and embed them in PROOF.md beside
+  the case that uses them. Validate every linked file exists and is readable.
+- Restore only settings you changed and close only tabs/resources you created.
+  If the provider cannot restore something, disclose the residual state.
 
-**A refused write is never a reason to drop back to inline-only.** That fallback
-is silent: the image still appears in the conversation, so the run feels
-evidenced while the disk stays empty — and the document ends up naming files
-that do not exist. If you find you have been in that state, restore the
-pre-change build, re-seed, and re-capture the earlier states before you finish.
-Reconstructing a screen from memory is fabrication; re-running the old build to
-photograph it again is not.
+## Data and environment
 
-**Never name an image you have not listed.** Before finishing, list the run
-directory and confirm every file the document references is present at a
-plausible size. A document citing screenshots that are not on disk is the worst
-artifact described in this file — it reads as proof, so nobody checks it.
+Discover schema/host/build first. Do not assume public schema, a reachable
+private host or that a migration ran. Do not automatically create cluster pods
+or run remote commands just because a database is unreachable.
 
-Two more closing checks, in the same pass, because both are invisible until
-someone else trips over them: **clear any viewport or device emulation you set**
-— it is sticky and it pins the next person's own window, including yours — and
-**close the pages you opened**, so a later run does not inherit your tabs. Do
-both even when the run failed early.
+Production reads remain bounded, selective and authorized under applicable
+rules; use read-only transactions and timeouts where supported. Avoid unbounded
+scans. Record actual query parameters and data volume for performance claims;
+staging-only measurements do not establish production behavior.
 
-## The DOM is not the screen
+## Completeness check
 
-Reading an element's text, or its `hidden` property, proves the element exists —
-not that a human can see it. A toast underneath a modal overlay, a control behind
-a sticky header, text the colour of its own background, a value clipped out of
-its box: every one of those passes a DOM assertion and fails the user. When the
-claim is "the user is shown X", the proof is a rendered capture, and for anything
-that can overlap, the computed stacking as well. A confirmation you read out of
-`document` verifies the string, not the interface.
-
-## A screenshot proves it rendered, not that it works
-
-A clean-looking screen over a console full of errors and a failed request is a
-lie with a nice render.
-
-- Pull **console and network after each meaningful step**, not once at the end —
-  a transient error is invisible after the next navigation.
-- A clean screen with a dirty console is a **finding**, not a footnote.
-- Drive the states that hide regressions: empty, loading, validation error,
-  failure/forbidden, success. Regressions cluster in the non-happy states.
-- **Test the logged-out and first-run states in an isolated context, not by
-  logging out.** Signing out of the persistent profile destroys the
-  authenticated session the rest of the run depends on. Open a named isolated
-  context instead — `new_page {url, isolatedContext: "clean"}` — which shares no
-  cookies or storage with the default one, then come back to the default context
-  for the authenticated cases. This is how the "no credential" and "someone
-  else's id" probes get driven through a UI without wrecking the session.
-- **A modal, drawer, sheet or popover is its own surface with its own five
-  states — drive them with the overlay open.** Satisfying "validation error"
-  against the API, or against the page underneath, does not reach the overlay's
-  own error path. Feed each overlay the input its *client-side* check rejects,
-  not just the input the server rejects: a value that passes the client and
-  fails the server exercises a completely different branch, and the branch you
-  skipped is the one only a user ever sees.
-- **A transient notification firing over an overlay is where stacking bugs
-  live.** Toasts, snackbars and inline alerts are authored against the page and
-  then shown on top of a dialog that outranks them, so the message exists,
-  reads correctly in the DOM, and is painted underneath. Whenever a notification
-  can appear while something is overlaid, check what is actually on top —
-  `document.elementFromPoint` at the notification's own centre, or the computed
-  stacking of both — and capture it. If the answer is not the notification, the
-  user was told nothing.
-- **Before/after is the strongest UI evidence.** One "after" shot is weak — a
-  reviewer cannot see what moved. Pair them around every fix you make, which
-  means capturing the broken state *before* you repair it.
-- **Capture every surface you drove, not only the broken ones.** One shot per
-  distinct screen and per state that hides regressions, passes included. The
-  screens that worked are what turns "we tested this" into something a reader can
-  check, and they cost one call each.
-- **If the change touches layout or responsiveness, capture every width it
-  targets — mobile and desktop at minimum.** A single desktop capture of a
-  responsive change proves the half you happened to look at. Layout regressions
-  live overwhelmingly at the narrow end: content overflowing its container, a
-  label wrapping onto two lines and pushing a control off-screen, a table that
-  scrolls the whole page instead of itself, a fixed element covering the thing it
-  sits beside. Pin each width explicitly — `resize_page` for a raw size,
-  `emulate` for a device profile — put the width in the filename so a reviewer
-  can tell the pair apart, and take before/after at each one. Then clear the
-  emulation, per the closing checks above.
-  **Confirm the width landed before trusting the capture**: read
-  `window.innerWidth` after pinning; if a device profile did not apply (the
-  page still reports the desktop width), `resize_page` to the raw size instead.
-  A capture at a width you did not verify is not evidence of that width.
-- **At every narrow width, open every dialog, drawer and sheet and capture it
-  with its buttons in frame.** Narrow-viewport testing is a *reachability*
-  question about controls, not only an overflow question about tables. A
-  dialog authored with a `min-width` wider than the phone hides its own Cancel
-  and Confirm off-screen — on exactly the irreversible actions dialogs guard —
-  and the tables beside it can look fine. Oracle: a dialog must fit the
-  viewport it is shown in.
-- Snapshot → act → **wait for the expected state** → capture. A screenshot taken
-  mid-transition is evidence of nothing. Element handles go stale after any DOM
-  change; re-snapshot.
-- Pin the viewport for reproducibility, and **clear the emulation when you
-  finish** with `emulate {viewport: ""}`. The override is sticky: it outlives the
-  run and leaves the browser stuck at your screenshot width, so the user cannot
-  resize their own window. It is *their* browser — a profile they use for real
-  work — and a window pinned to 1440×900 is a side effect they did not ask for.
-  You can tell the clear landed because tool responses stop echoing the
-  `Emulating viewport: {...}` line and `window.innerWidth` matches the real
-  window again. Do it as the last step even when the run failed early — a run
-  that died halfway is exactly the one that forgets, and it leaves the browser in
-  the worst state.
-
-## Databases
-
-Find the schema first — apps frequently use a named schema, not `public`, and
-sibling services reuse table names. A private host (RFC1918) is not reachable
-from a laptop; run a client inside the cluster, using a long-lived pod and
-`exec` rather than a `--rm -i` one-shot, which races teardown and loses output.
-
-**Production is read-only, bounded, and confirmed in advance.**
-`default_transaction_read_only = on`, a statement timeout, SELECT only, and **no
-unbounded full-table scans** — reach heavy rows through selective indexed access
-off a small dimension table instead.
-
-Confirm a migration **applied** rather than assuming it ran at startup; check the
-version advanced, is not dirty, and that any index is valid and ready.
-
-## The staging trap
-
-**Any performance, access-path, or index claim validated only on staging is
-wrong until proven otherwise.** Staging tables are tiny, so the planner picks
-cheaper plans than production. A query that index-scans over 500 rows can pick a
-catastrophic plan over a million.
-
-Plan the exact shape the code runs, with the parameters it actually binds — a
-predicate like `($3 = '' OR col = $3)` collapses to `TRUE` when you hardcode
-`''`, and you profile a query production never runs. Report timings with their
-conditions attached: "1.4s at staging scale, single user, warm" is evidence;
-"1.4s" implies a claim you did not make.
-
-## Classification
-
-Three states, honestly applied: **passed** (observed, with the artifact),
-**failed** (observed, with the artifact), **unproven** (the layer was required
-and unavailable, or nothing was retained). A case marked passed with no retained
-artifact is unproven — say so rather than letting an empty directory imply green.
-
-A flake is not a verdict: retry once, then classify honestly.
+For every case, reconcile result → report block → existing artifacts.
+Preserve the full captured files even when only excerpts enter context.
+Record capture start/end times and bounds; never infer absent events from
+incomplete logs. Interrupted/failed runs retain their proof and honest verdict.
+A refused capture is a gap to disclose, never permission to manufacture proof.

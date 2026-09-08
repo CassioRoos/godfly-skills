@@ -10,11 +10,20 @@ Do **not** produce a full closeout packet unless a trigger in
 
 1. **Flush records** — any decision/question/evidence produced this session
    that is still only in chat lands in D/Q/E (or is linked from a PR/CI note).
-2. **Update STATE.md only:**
+2. **Verify, then record the git facts.** Run the repo's build/test if it is
+   runnable, and write the result into STATE's **Verified** line as facts a
+   resumer would otherwise have to reconstruct from git:
+   `verified: build+test green @ <sha>, branch <b>, tree clean`. If it is not
+   runnable, say so and why (`not runnable: <reason>`) — never leave it implying
+   a green run that never happened.
+3. **Update STATE.md only:**
    - one-line **Status**
+   - **Verified** (above) and **Behavior changes shipped** — one line per
+     user-visible or contract change this task actually shipped. A normalization
+     rule that exists only in the code is the gap that costs the most later.
    - **Now / Next / Blocked** (short bullets)
    - one **Session log** line: `YYYY-MM-DD — <what changed, highest gate, next>`
-3. **Chat reply (first screen only):**
+4. **Chat reply (first screen only):**
    - Verdict (done / not done)
    - Primary blocker (or `None`)
    - Exact next gate + who acts

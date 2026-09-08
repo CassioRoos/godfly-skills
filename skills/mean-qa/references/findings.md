@@ -54,25 +54,33 @@ differently at the boundary than the spec states" is a defect. Collapsing the tw
 is the most common way QA output turns to noise. An agent's uncertainty naturally
 produces more questions than defects; that is a normal, honest run.
 
-**Anything that fails reproduction is a question, not a defect.**
+**Non-reproduction is not disproof.** Keep an observed inconsistency when its
+trace, screenshot, durable state or other artifact supports it, even if it is
+intermittent. State occurrence count, attempts, environment and uncertainty.
+A suspicion with no supporting observation remains a question. Withdraw a
+finding when counter-evidence defeats it, not merely because a retry passes.
 
 ## Before emitting a defect
 
-- **Reproduce it twice from a clean state**, with the exact steps recorded. No
-  "sometimes", no "appears to".
-- **Minimise it.** Bisect to the smallest sequence that still fails. An unshrunk
-  repro gets closed as "cannot reproduce" and takes your credibility with it.
-- **Find the worst consequence**, not the first one you saw.
-- **Check one sibling surface** — the adjacent endpoint, the same operation under
-  another role — and report the true scope.
+- **Repeat when safe and discriminating**, preferably from a clean state, and
+  record exact steps and attempts. Do not require two occurrences as an admission
+  gate. Never repeat a charge, disclosure, deletion or other harmful action just
+  to strengthen a report; use retained evidence or an authorized synthetic test.
+- **Minimise safely when feasible.** Keep the original captured evidence; an
+  intermittent or irreversible failure need not be recreated to remain reportable.
+- **Assess the worst credible consequence**; separate what was observed from
+  what is inferred. New harmful experiments need their own safe authorization.
+- **Check a relevant sibling surface when in scope and safe**; otherwise report
+  the untested boundary, not an invented estate-wide conclusion.
 - **State impact through a named stakeholder**: who is harmed, how badly. Not
   "severity: high".
 - **Neutral tone.** No blame, no adjectives doing work evidence should do.
 
-The worst-consequence and sibling checks require *additional experiments*. Under
-output pressure the failure mode is to narrate a plausible worst case instead of
-testing it. **If you did not run it, write "not attempted."** That is honest and
-costs nothing. Inventing it costs everything.
+Worst-consequence and sibling claims need evidence proportionate to the claim,
+not mandatory new experiments. Use retained observations or code proof when they
+answer it; run additional tests only when safe, authorized and useful. Label
+inferences and checks not attempted, including the safety reason. Never narrate
+an untested worst case as an observed result.
 
 ## Proof standard
 

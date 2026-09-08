@@ -1,21 +1,19 @@
 # {{SLUG}} — toolshed state
 
-Convention: [../WORKBENCH.md](../SKILL.md) (read it once; it is short).
-**Read this file first in every session, any model.** Then work the records:
+**Read this file first in every session, any model**, then the records:
 [decisions.md](./decisions.md) · [questions.md](./questions.md) ·
-[evidence.md](./evidence.md).
-
-Skill: **toolshed** (`/toolshed`). Path under **docs/**: `docs/work/{{SLUG}}/`.
-
-**Shape law:** resume surface (soft cap ~120 lines for new toolsheds). No full
-closeout packet, no evidence appendix, no W-registry dump here. Ledgers in
-D/Q/E; optional ship matrix → `packet.md`. Evidence may also live in **PR/CI**.
-Gates: `assert-started.sh` / `assert-state.sh` (`--soft` for legacy bloat).
+[evidence.md](./evidence.md). Convention: [./TOOLSHED.md](./TOOLSHED.md).
+**Shape law:** resume surface, soft cap ~120 lines — ledgers live in D/Q/E, a
+full packet in `packet.md`, never here (`assert-state.sh` warns).
 
 - **Goal:** {{GOAL}}
 - **Ticket:** _none yet — attach here if/when one exists_
 - **Opened:** {{DATE}} · **Repo:** {{REPO}} · **Convention:** v{{VERSION}}
 - **Status:** understanding
+- **Verified:** _(none yet — e.g. `build+test green @ <sha>, branch <b>, tree clean`)_
+- **Behavior changes shipped:** _(none yet — one line per user-visible or
+  contract change this task shipped; a rule that lives only in the code is what
+  the next session pays for)_
 
 ## Understanding (evidence before proposal — the gate)
 

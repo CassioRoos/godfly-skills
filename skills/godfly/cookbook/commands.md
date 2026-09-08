@@ -10,7 +10,7 @@ process for each, plus the question style used when input is needed.
 2. **Steelman** -- The Steelman Guarantee: your ask, your strongest case, your
    broadest invariant checked first
 3. **Assumptions** -- Surface and rate hidden assumptions (read `assumptions-check` skill)
-4. **Investigate** -- Gather evidence from codebase, web, precedents (read `evidence-grounding` skill)
+4. **Investigate** -- Gather evidence from codebase, web, precedents (use the hub's Challenge Structure and evidence tiers)
 5. **Challenge** -- Evidence-backed challenges, one at a time
 6. **Rounds** -- Back and forth. Evidence decides.
 7. **Synthesize** -- Something better than either starting point. Write settled
@@ -24,7 +24,7 @@ process for each, plus the question style used when input is needed.
    What would make it right?
 3. **Assumptions** -- What is this code assuming? (read `assumptions-check` skill)
 4. **Evidence** -- Search codebase for patterns, check for known failure modes
-   (read `evidence-grounding` and `failure-analysis` skills)
+   (use the hub's evidence tiers and read `failure-analysis`)
 5. **Position** -- What I'd change and why, with evidence
 6. **Challenges** -- the hub's Challenge Structure format. Live sparring:
    one at a time, resolved, then next. One-shot deliverable: ordered by

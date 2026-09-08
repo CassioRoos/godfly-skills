@@ -9,7 +9,7 @@ When reviewing a system, check for these patterns. Each has been responsible for
 ### Write-Then-Publish (No Transaction)
 **Pattern:** Write to database, then publish to queue. If publish fails, database has a record the rest of the system doesn't know about.
 **Check:** Are database writes and message publishes in the same transaction boundary?
-**Fix:** Outbox pattern, or transactional outbox, or publish-then-write with idempotent consumer.
+**Candidate control:** Persist the business change and outbox record in the same database transaction, then use a real relay and an idempotent consumer. Reversing publish/write order is not atomicity: it can announce a change that never commits. Prove relay retries and durable consumer effects.
 
 ### Read-Modify-Write Race
 **Pattern:** Read a value, modify it in code, write it back. Two concurrent requests read the same value, both modify, last write wins.
@@ -43,7 +43,7 @@ When reviewing a system, check for these patterns. Each has been responsible for
 ### Split Brain
 **Pattern:** Two instances think they're the leader. Both process the same work, causing duplicates.
 **Check:** Is leader election reliable? What happens during network partition?
-**Fix:** Fencing tokens, distributed locks with TTL, single-writer principle.
+**Candidate control:** Enforce fencing tokens at the protected resource or another proven single-writer boundary. A TTL lock alone does not prevent an expired lease holder from writing.
 
 ### Thundering Herd
 **Pattern:** After an outage, all clients reconnect or retry simultaneously. The surge overwhelms the recovering service.

@@ -119,7 +119,7 @@ Sibling skills:
 |---------------|----------------|-----|
 | Hidden assumptions | [assumptions-check](./../assumptions-check/SKILL.md) | Surface and test what's taken for granted |
 | Multiple viable approaches | [competing-hypotheses](./../competing-hypotheses/SKILL.md) | Map the solution space with evidence |
-| Claims without proof | [evidence-grounding](./../evidence-grounding/SKILL.md) | Canonical evidence tiers and grounding process |
+| Claims without proof | [Challenge Structure](#challenge-structure) | Evidence tiers, counter-evidence, and a falsification test |
 | Reliability concerns | [failure-analysis](./../failure-analysis/SKILL.md) | FMEA, dependency chains, known failure patterns |
 | Launch/attack-surface review | [red-blue-review](./../red-blue-review/SKILL.md) | Attack paths, defense controls, ship/block/spike gate |
 | Future or past failure framing | [premortem-postmortem](./../premortem-postmortem/SKILL.md) | Premortem threats, postmortem evidence timeline |
@@ -150,7 +150,7 @@ ALTERNATIVE:      [Proven approach, with where it's used]
 TEST:             [How we'd validate which approach is right]
 ```
 
-Tiers are `evidence-grounding`'s scale: S measured on this system, A this
+Evidence tiers: S measured on this system, A this
 codebase, B production precedent, C documented practice. D (industry pattern)
 and F (opinion/convention) exist below these -- **a challenge backed only by
 Tier D or F evidence is not presented at all.** I never say "this is bad"

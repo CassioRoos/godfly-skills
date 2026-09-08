@@ -34,15 +34,6 @@ of "the approval path", "the search screen" — not "here are all my screenshots
 here are all my queries". Each flow gets: what it is, a results table, the
 captured evidence, and prose explaining anything a table cannot carry.
 
-**This file is created with the run directory, not after the last case.** It opens
-with the header filled in, the verdict line at `IN PROGRESS`, and an empty results
-table. Each case's row and evidence block are appended as it runs, and each capture
-is embedded at the point it becomes evidence. The closing pass only rewrites the
-verdict, *Worst first* and *Residual risk*. A run cut short — a usage limit, an API
-error, a compacted context, a user who had to leave — therefore still leaves a
-readable document, its verdict line reading `INCOMPLETE — stopped after <case>`
-instead of lying by absence.
-
 ````markdown
 # <Feature or change> — QA report
 
@@ -50,7 +41,7 @@ instead of lying by absence.
 for it. Written from the diff or the spec, not from the ticket title. A reader
 who knows nothing about this feature starts here and is oriented.>
 
-**Verdict:** IN PROGRESS → SHIP / HOLD / CONDITIONAL / INCOMPLETE — <one sentence, the single blocking reason>
+**Verdict:** SHIP / HOLD / CONDITIONAL — <one sentence, the single blocking reason>
 **Environment:** <env, base URL, how reached>
 **Build under test:** <image/tag/commit, or the marker that proved it>
 **Run:** <date, window> · <n> cases executed, <n> failed · fixtures <names>
@@ -192,18 +183,16 @@ an explicit statement that you could not determine it), and **what it costs**
 — an honest "I could not tell from the outside whether this is the handler or
 the store" is useful; an invented cause is not.
 
-## Every executed case gets its evidence block — inline AND on disk
+## Every executed case gets a report block and retained files
 
-Eleven cases means eleven request/response pairs. Not a table asserting they
-passed, not three representative samples. Collapse them behind `<details>` if the
-page needs to stay scannable — never summarise them away.
-
-Inline `<details>` makes each case *reviewable*; the files under `cases/<case-id>/`
-make it *replayable*. Write both when there is a run directory — a reviewer should
-be able to run `cases/TC-01/request.sh` and get the recorded response without you
-present. The per-case layout and its minimum contents are in the evidence
-reference. The report's evidence column links each row to its `cases/<id>/`
-directory.
+Eleven cases means eleven case blocks, including passes; never just a sample.
+Each block carries expected/observed behavior, decisive sanitized excerpts and
+links to complete captured files in `cases/<case-id>/`. Embed relevant screens.
+Large bodies stay in linked files instead of being duplicated inline and in
+chat. A summary is not a substitute for retaining the underlying evidence.
+Label every redaction, capture bound and truncation. Replay uses current
+explicit auth and remains subject to operation safety; it cannot promise the
+same response from a changed system. See [evidence.md](evidence.md).
 
 ## Designed-but-not-run reports
 

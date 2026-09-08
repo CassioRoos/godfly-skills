@@ -1,80 +1,32 @@
-# FMEA Deep Dive
+# Failure inventory
 
-## Failure Mode and Effects Analysis for Software
+Use the consequence-first policy in ../SKILL.md. Numeric scores may aid a
+team's existing tracking system, but never set release gates or accept risk.
 
-FMEA was developed for hardware engineering but applies directly to software systems. The core idea: systematically identify how each component can fail, rate the risk, and prioritize mitigation.
+## Worked comparisons (illustrative, not findings about the current system)
 
-## Rating Scales
+| Failure and trigger | Consequence | Detection/containment | Priority reasoning and next proof |
+|---|---|---|---|
+| A payment retry has no effective idempotency boundary after an ambiguous timeout | Duplicate settled charge | Immediate alert, no prevention | Rare and loud still permits irreversible harm; prove one durable effect across timeout/retry before clearing the affected path |
+| Cosmetic label flickers on every render | Minor, reversible confusion | Visible; refresh recovers | Frequent and poorly monitored does not outrank duplicate charges; schedule by user impact |
+| Partial multi-row write lacks a transaction | Persistent inconsistent balances | Reconciliation proposed but untested | Trace a reachable partial-commit path and run a bounded failure test; a monitoring proposal is not containment |
+| Database outage with bounded retries and rehearsed restoration | Temporary unavailability within the agreed recovery target | Alert and recovery demonstrated | State the demonstrated envelope and load; do not manufacture a catastrophic blocker |
+| Alleged data loss has no reachable trigger identified | Impact unknown | Unknown | Investigation question, not an established defect or invented probability |
 
-### Severity (Impact when failure occurs)
+## Detection is not prevention
 
-| Score | Level | Software Example |
-|-------|-------|-----------------|
-| 10 | Catastrophic | Data loss, security breach, financial loss |
-| 8-9 | Critical | Full service outage, data corruption |
-| 6-7 | Major | Major feature unavailable, significant data delay |
-| 4-5 | Moderate | Degraded performance, partial feature loss |
-| 2-3 | Minor | Cosmetic issue, minor inconvenience |
-| 1 | None | No user-visible impact |
+For each failure, check whether logs, counters, alerts and reconciliation detect
+the decisive branch, how long detection takes, and what can stop further damage.
+Then separately check what is already irreversible by that point.
 
-### Probability (How likely is this failure)
+Silent corruption can accumulate; a loud security disclosure can be instant.
+Neither "silent" nor "obvious" automatically sets priority. State the mechanism,
+scope, recovery limits and fastest discriminating test.
 
-| Score | Level | Criteria |
-|-------|-------|----------|
-| 10 | Certain | Has happened repeatedly, no fix in place |
-| 8-9 | Very likely | Has happened before, or obvious vulnerability |
-| 6-7 | Likely | Similar systems have this failure, conditions exist |
-| 4-5 | Moderate | Possible under specific conditions |
-| 2-3 | Unlikely | Requires unusual circumstances |
-| 1 | Remote | Theoretically possible but no known occurrence |
+## Assessment completeness
 
-### Detectability (How hard is it to notice)
-
-This is the most underrated factor. Silent failures cause the most damage.
-
-| Score | Level | Criteria |
-|-------|-------|----------|
-| 10 | Undetectable | No monitoring, no alerts, no user-visible symptom |
-| 8-9 | Very hard | Only discoverable through manual investigation |
-| 6-7 | Hard | Might show up in logs, but no one watches them |
-| 4-5 | Moderate | Alert exists but may be delayed or noisy |
-| 2-3 | Easy | Clear alert, user reports immediately |
-| 1 | Obvious | System stops, impossible to miss |
-
-## Example FMEA Table
-
-| # | Component | Failure Mode | S | P | D | RPN | Mitigation |
-|---|-----------|-------------|---|---|---|-----|------------|
-| 1 | Queue consumer | Poison pill message crashes consumer loop | 8 | 6 | 7 | 336 | Add dead-letter queue + message validation |
-| 2 | Database write | Partial write (no transaction) | 9 | 4 | 9 | 324 | Wrap in transaction, add consistency check |
-| 3 | API handler | Unbounded query returns 100k rows | 6 | 5 | 3 | 90 | Add pagination, set max limit |
-| 4 | Auth middleware | Token expiry not checked | 10 | 3 | 8 | 240 | Add expiry validation, add auth tests |
-
-## Focus Areas by RPN
-
-### RPN 200+ (Critical)
-Stop and fix these. They represent high-impact, likely, hard-to-detect failures.
-Common patterns: silent data corruption, missing auth checks, unhandled error paths.
-
-### RPN 100-199 (High)
-Address before shipping or add comprehensive monitoring.
-Common patterns: missing timeouts, no retry limits, unbounded resource consumption.
-
-### RPN 50-99 (Medium)
-Document and add monitoring. Fix when convenient.
-
-### RPN <50 (Low)
-Accept and move on. Not everything needs mitigation.
-
-## The Silent Failure Audit
-
-For any system, specifically hunt for failures where Detectability >= 7:
-
-1. **No error logging:** Function swallows errors or logs at DEBUG level
-2. **No metrics:** Operation has no success/failure counters
-3. **No health check:** Component can be broken without affecting health endpoint
-4. **No data validation:** Corrupt data flows through without validation
-5. **No reconciliation:** Two systems can disagree without anyone noticing
-6. **No timeout monitoring:** Slow operations aren't tracked
-
-These are the most dangerous failures because they accumulate damage over time before anyone notices.
+Cover legitimate requests wrongly rejected as well as harmful requests allowed.
+Include dependency recovery, retry amplification, stale state and partial
+completion. Record missing evidence without translating unknown into low risk.
+Risk acceptance names the accountable owner, rationale, expiry/review trigger
+and scope; never manufacture that decision from a score.

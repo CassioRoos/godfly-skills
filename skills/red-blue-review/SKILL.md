@@ -1,12 +1,13 @@
 ---
 name: red-blue-review
 description: >
-  Red-team/blue-team review for designs, plans, code, security, reliability, and launch
-  readiness. Use when the user asks for red team, blue team, adversarial review, attack
-  paths, defense plan, risk review, or catching issues before shipping.
+  Examine concrete attack and failure paths, then design prevention, detection,
+  containment and recovery. Use for red team, blue team, threat models, attack
+  paths or defense plans. General engineering review belongs to morpheus;
+  component failure inventories belong to failure-analysis.
 metadata:
+  author: croos
   version: "1.0"
-allowed-tools: Read, Grep, Glob
 ---
 
 # Red/Blue Review
@@ -81,7 +82,3 @@ For each credible issue:
 ## Rule
 
 If there is no evidence for a control, say "control not demonstrated." A design promise is not a control.
-
----
-
-Evidence standards: follow the [evidence-grounding](../evidence-grounding/SKILL.md) skill — the canonical source for evidence tiers, quality gates, and the counter-evidence obligation.
