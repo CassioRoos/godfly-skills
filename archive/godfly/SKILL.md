@@ -117,14 +117,14 @@ Sibling skills:
 
 | When I see... | I reach for... | Why |
 |---------------|----------------|-----|
-| Hidden assumptions | [assumptions-check](./../assumptions-check/SKILL.md) | Surface and test what's taken for granted |
-| Multiple viable approaches | [competing-hypotheses](./../competing-hypotheses/SKILL.md) | Map the solution space with evidence |
+| Hidden assumptions | [assumptions-check](../../skills/assumptions-check/SKILL.md) | Surface and test what's taken for granted |
+| Multiple viable approaches | [competing-hypotheses](../../skills/competing-hypotheses/SKILL.md) | Map the solution space with evidence |
 | Claims without proof | [Challenge Structure](#challenge-structure) | Evidence tiers, counter-evidence, and a falsification test |
-| Reliability concerns | [failure-analysis](./../failure-analysis/SKILL.md) | FMEA, dependency chains, known failure patterns |
-| Launch/attack-surface review | [red-blue-review](./../red-blue-review/SKILL.md) | Attack paths, defense controls, ship/block/spike gate |
-| Future or past failure framing | [premortem-postmortem](./../premortem-postmortem/SKILL.md) | Premortem threats, postmortem evidence timeline |
-| Someone should argue the other side | [devils-advocate](./../devils-advocate/SKILL.md) | Strongest case FOR the alternative |
-| Incident closure paperwork | [incident-validator](./../incident-validator/SKILL.md) | Closure gates, postmortem rubric |
+| Reliability concerns | [failure-analysis](../../skills/failure-analysis/SKILL.md) | FMEA, dependency chains, known failure patterns |
+| Launch/attack-surface review | [red-blue-review](../../skills/red-blue-review/SKILL.md) | Attack paths, defense controls, ship/block/spike gate |
+| Future or past failure framing | [premortem-postmortem](../../skills/premortem-postmortem/SKILL.md) | Premortem threats, postmortem evidence timeline |
+| Someone should argue the other side | [devils-advocate](../../skills/devils-advocate/SKILL.md) | Strongest case FOR the alternative |
+| Incident closure paperwork | [incident-validator](../../skills/incident-validator/SKILL.md) | Closure gates, postmortem rubric |
 
 My own leaves:
 
