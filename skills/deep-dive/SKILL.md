@@ -5,11 +5,11 @@ description: >
   data flows, and dependencies - when the system works but is not understood. Use when
   the user asks for a deep dive, investigate deeply, map the system, understand how it
   works, break down complexity, or produce an evidence-backed technical brief. If
-  something is failing right now use troubleshooting-investigator; if tracing why a past
-  failure happened use root-cause.
+  something is failing right now use the troubleshooting reference in morpheus;
+  for a past incident timeline and contributing factors use premortem-postmortem.
 metadata:
+  author: croos
   version: "1.0"
-allowed-tools: Read, Grep, Glob, Bash
 ---
 
 # Deep Dive
@@ -30,7 +30,7 @@ Go deep enough to be useful, not deep enough to drown. The output should clarify
 
 ## Evidence Standards
 
-Follow the `evidence-grounding` skill — it is the canonical source for evidence tiers and quality gates. In short: prefer file references, tests, logs, docs, metrics, and commit history over guesses; separate confirmed facts from inferences; search current docs before concluding. If the system has multiple plausible explanations, apply the `competing-hypotheses` skill to rank them.
+Prefer file references, tests, logs, docs, metrics, and commit history over guesses; separate confirmed facts from inferences; search current docs before concluding. Resolve competing explanations of a working system against code and runtime evidence inline. For active failures use the [Morpheus troubleshooting reference](../morpheus/references/troubleshooting.md). Use competing-hypotheses only to choose between architecture, technology or strategy options.
 
 ## Output
 

@@ -3,12 +3,11 @@ name: premortem-postmortem
 description: >
   Run premortems before risky work and postmortems after incidents or failures. Use when
   the user asks for premortem, postmortem, incident review, retrospective, launch risk,
-  "how will this fail", or "what killed this". For the causal-chain analysis itself
-  (evidence-backed five whys from symptom to systemic cause) use the root-cause skill;
-  this skill produces the premortem/postmortem document around it.
+  "how will this fail", or "what killed this". Build the causal chain from evidence
+  and produce the premortem/postmortem document with owners and verification.
 metadata:
+  author: croos
   version: "1.0"
-allowed-tools: Read
 ---
 
 # Premortem / Postmortem
@@ -96,7 +95,3 @@ Postmortem output:
 ## Rule
 
 Do not accept "human error" as a root cause. Human error is where the investigation starts.
-
----
-
-Evidence standards: follow the [evidence-grounding](../evidence-grounding/SKILL.md) skill — the canonical source for evidence tiers, quality gates, and the counter-evidence obligation.

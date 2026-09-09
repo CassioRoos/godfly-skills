@@ -1,237 +1,43 @@
-# Safety Protocol
+# Safety protocol
 
-The core safety framework for all system operations. Load this before any operation.
+Authorization lives in ../SKILL.md; this file adds execution mechanics.
+Do not reinterpret a domain recipe's "confirm" as a second approval requirement.
 
-## The Three Gates
+1. Resolve exact targets, ownership, environment and the highest-risk step.
+   Read operations can still expose secrets or overload production: bound them.
+2. Preview the whole authorized operation once. Include irreversible effects,
+   affected people/services and any meaningful automated side effects.
+3. Check whether existing authorization covers that preview. Ask only for
+   missing authority or changed scope/risk; destructive steps require an
+   explicitly approved exact preview.
+4. Execute incrementally; capture sanitized output and check partial state
+   after any error. Never silently retry destructive or non-idempotent writes.
+5. Read back authoritative state. A successful command is not proof that the
+   intended deployment reconciled or the expected remote ref changed.
+6. Summarize outcome once. Recovery is a separate mutation and needs authority.
 
-Every operation must pass through applicable gates before execution:
+## Nonmutating previews
 
-```
-Operation Request
-       |
-       v
-  ┌──────────┐
-  │ CLASSIFY  │  Determine risk level (L1-L4)
-  └──────────┘
-       |
-       v
-  ┌──────────┐
-  │ PREVIEW   │  Dry-run or show what will happen (L2+)
-  └──────────┘
-       |
-       v
-  ┌──────────┐
-  │ CONFIRM   │  Get user approval (L3+)
-  └──────────┘
-       |
-       v
-  ┌──────────┐
-  │ EXECUTE   │  Run the operation
-  └──────────┘
-       |
-       v
-  ┌──────────┐
-  │ AUDIT     │  Log action + rollback info (L2+)
-  └──────────┘
-```
+- Git changes: pinned refs and `git diff --stat <old> <new>`.
+  This shows a diff, not mergeability. For actual conflict diagnostics use
+  `git merge-tree --write-tree <base-sha> <topic-sha>` when supported.
+  It writes Git objects but does not change HEAD, index or worktree.
+  Exit 1 means conflicts; other errors require investigation.
+  Never use a real `git merge --no-commit` as a "dry run".
+- Deletions: list exact resolved targets and preserve recoverable backups.
+  A broad root, unresolved glob or variable is not a safe target.
+- Data mutations: use bounded, selective counts and sanitized shapes, then
+  review SQL/transaction/backup implications. Do not print sensitive rows.
+- Infrastructure: use supported planning/diff commands; inspect their own
+  side effects. Never invent a dry-run flag.
 
-## Gate 1: Risk Classification
+## Recovery
 
-Classify EVERY operation before executing:
+Capture the old remote SHA before a push. Prefer a normal revert for published
+history. If an explicitly approved rollback rewrites a ref, use the exact
+old SHA and an exact lease on the expected current SHA, as in dev-workflow.md.
+A lease failure means the world changed: inspect, do not widen the lease.
+Never use moving HEAD~N expressions or unleased +refspec rollback.
 
-### L1 — Read-Only (No gate needed)
-- `git status`, `git log`, `git diff`
-- `docker ps`, `docker images`, `docker logs`
-- `kubectl get`, `kubectl describe`
-- `ls`, `cat`, `find`, `grep`, `ps`, `df`, `top`
-- `SELECT` queries (no writes)
-- API GET requests (no side effects)
-
-### L2 — Local Reversible (Preview required)
-- `git add`, `git commit`, `git branch`, `git stash`
-- File creation, editing, moving (with backup)
-- `docker build`, `docker-compose up` (local)
-- `npm install`, `go mod tidy`
-- Environment variable changes (local)
-- Cache invalidation (local)
-
-### L3 — Remote / Hard-to-Reverse (Dry-run + Confirm)
-- `git push`, `git merge` (to shared branches)
-- `docker push`, container deployments
-- `kubectl apply`, `kubectl scale`
-- Database INSERT/UPDATE (production or shared)
-- API POST/PUT/PATCH to external services
-- CI/CD pipeline triggers
-- PR creation, issue comments
-- Cloud resource provisioning
-
-### L4 — Destructive / Irreversible (Dry-run + Explicit Confirm + Rollback Plan)
-- `git push --force`, `git reset --hard`
-- `rm -rf`, recursive deletes
-- `DROP TABLE`, `DELETE FROM` without backup
-- `kubectl delete`, pod/deployment removal
-- Cloud resource deletion
-- Production database migrations (schema changes)
-- Service teardown
-- Branch deletion (remote)
-
-## Gate 2: Preview / Dry-Run
-
-For L2+ operations, ALWAYS preview before executing:
-
-### Preview Techniques by Domain
-
-**Git operations:**
-```bash
-# Before push: show what will be pushed
-git log origin/main..HEAD --oneline
-git diff origin/main..HEAD --stat
-
-# Before merge: show what will change
-git merge --no-commit --no-ff <branch> && git diff --cached && git merge --abort
-
-# Before reset: show what will be lost
-git diff HEAD..<target>
-```
-
-**Docker operations:**
-```bash
-# Before build: review the Dockerfile and build context (docker build has no dry-run flag)
-cat Dockerfile && docker buildx du 2>/dev/null || du -sh .
-
-# Before push: show image details
-docker inspect <image> | jq '.[0].Config'
-```
-
-**Kubernetes operations:**
-```bash
-# Before apply: diff against current state
-kubectl diff -f <manifest>
-
-# Before delete: show what will be affected
-kubectl get <resource> -o wide
-
-# Before scale: show current state
-kubectl get deployment <name> -o jsonpath='{.spec.replicas}'
-```
-
-**Database operations:**
-```sql
--- Before UPDATE/DELETE: SELECT first to show affected rows
-SELECT * FROM <table> WHERE <conditions>;
--- Show count
-SELECT COUNT(*) FROM <table> WHERE <conditions>;
-
--- Before migration: show the SQL that will run
--- (framework-specific: goose status, flyway info, etc.)
-```
-
-**File operations:**
-```bash
-# Before bulk delete: list what will be removed
-find <path> -name "<pattern>" -type f
-# Show count
-find <path> -name "<pattern>" -type f | wc -l
-
-# Before overwrite: show diff
-diff <old> <new>
-```
-
-**Cloud / Infrastructure:**
-```bash
-# Before provisioning: show plan
-terraform plan
-pulumi preview
-
-# Before teardown: list affected resources
-terraform state list | grep <resource>
-```
-
-## Gate 3: Confirmation
-
-### L2 — No confirmation stop
-Show the preview and proceed. The preview is the user's chance to object.
-
-### L3 — Explicit named confirmation
-Show the preview AND ask a confirmation that names all four items — exact action, environment and target, read-only vs mutating, expected effect and scope:
-> "About to run [exact command] against [environment/target]. This is a mutating operation that will [effect and scope]. Proceed?"
-
-The user's original request does not count as this confirmation; it must follow the preview. A reply that does not address the named action is not confirmation.
-
-### L4 — Explicit named confirmation with rollback plan
-Everything in L3, plus a rollback plan, plus the DESTRUCTIVE marker:
-> "**DESTRUCTIVE**: About to run [exact command] against [environment/target]. This will [effect and scope] and is [irreversible / reversible via ...]. To undo: [rollback steps]. Proceed?"
-
-## Gate 4: Audit Trail
-
-After every L2+ operation, output the audit block:
-
-```
---- OPS AUDIT ---
-Action: {concise description of what was executed}
-Risk: L{level}
-Scope: {files, services, resources affected}
-Reversible: {yes | no | partial}
-Rollback: {specific command or steps to undo}
-Output: {key output or "see above"}
------------------
-```
-
-### Audit Examples
-
-```
---- OPS AUDIT ---
-Action: Pushed branch feature/auth to origin
-Risk: L3
-Scope: remote origin, branch feature/auth (3 commits)
-Reversible: yes
-Rollback: git push origin +HEAD~3:feature/auth
------------------
-```
-
-```
---- OPS AUDIT ---
-Action: Dropped index idx_users_email on users table
-Risk: L4
-Scope: production database, users table index
-Reversible: yes (with rebuild time)
-Rollback: CREATE INDEX idx_users_email ON users(email);
------------------
-```
-
-## Scope Boundaries
-
-### What This Agent Will NOT Do Without Escalation
-- Execute commands as root/sudo without explicit user request
-- Modify production databases without a backup confirmation
-- Push to main/master without branch protection check
-- Delete remote branches without listing dependents
-- Run commands on remote hosts without confirming the target
-
-### Environment Awareness
-Before operating, confirm the environment:
-- Is this local, staging, or production?
-- **If you cannot tell, it is production.** Unclassifiable environments get production ceremony: treat the operation one risk level higher until the environment is proven otherwise.
-- Are there other users/services that could be affected?
-- Is there a maintenance window or freeze in effect?
-
-When another active skill defines a stricter boundary for the same operation (e.g. a QA or deployment skill with its own environment boundary), the stricter rule wins.
-
-## Composing Operations
-
-For multi-step operations:
-1. Classify the HIGHEST risk step — that's the overall risk level
-2. Preview ALL steps as a plan before executing any
-3. Execute step-by-step, auditing each L2+ step
-4. If any step fails, stop and present options (retry, skip, rollback)
-
-## Error Recovery
-
-If an operation fails:
-1. Capture the error output
-2. Assess the state (partial execution?)
-3. Present options:
-   - **Retry**: If transient (network, timeout)
-   - **Rollback**: If partial execution left bad state
-   - **Investigate**: If error is unclear
-4. Never silently retry destructive operations
+A backup must be readable and sufficient to restore the affected data; naming
+a backup is not testing recovery. Preserve unique paths and original locations.

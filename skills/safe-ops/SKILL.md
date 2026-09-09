@@ -1,71 +1,55 @@
 ---
 name: safe-ops
-description: Safe system operations with risk classification, dry-run previews, confirmation gates,
-  and audit trails. Use when performing mutating, destructive, or remote operations - infrastructure
-  ops (Docker, K8s, cloud), dev workflow ops (git push/merge, CI/CD, PRs), data/service ops
-  (databases, APIs, caches), or risky local ops (bulk deletes, process kills). Triggers on "deploy",
-  "restart", "migrate", "scale", "delete", "drop", "kill", "push", "reset", "force", "prune",
-  "cleanup", "teardown". Not needed for read-only commands.
-allowed-tools: Read, Write, Edit, Bash, Grep, Glob
+description: Safely perform authorized remote, destructive or security-relevant operations, including Git push/merge, releases, infrastructure and data mutations, credential changes and bulk cleanup. Not required for routine read-only inspection or ordinary scoped repository edits.
 ---
 
 # Safe Ops
 
-Execute system operations safely with risk classification, dry-run previews, confirmation gates, and audit trails.
+Make the safe path easy. Check authority, preview material effects, execute the
+named operation, and read back the result. No ritual approval loops.
 
-## Quick Start
+## One authorization policy
 
-Before ANY system operation:
+- A clear request naming an operation and a resolvable target authorizes that
+  scope. "Commit and push this branch" and "open the PR" do not need another
+  generic "proceed?". Show a compact preview and continue.
+- A review, diagnosis or QA request does not authorize publishing or fixing.
+  "Ship it" does not silently authorize merge, tag, deploy or database changes.
+- Ask when the action/target is ambiguous, blast radius exceeds the request,
+  or new evidence materially changes the risk. Do not turn an inferred goal
+  into authority for a remote mutation.
+- Destructive/history-rewriting actions require approval of the **exact
+  preview**: targets, old/new state, losses, recovery and its limits.
+  An earlier explicit approval of that unchanged preview remains valid.
+- Higher-priority and environment-specific gates still apply, including
+  production restrictions and the user's exact-diff approval for global
+  Codex instructions/configuration/skills. Unknown environment = production.
+  Never infer ST/PROD write authorization from local-development permission.
 
-1. **Classify risk** (L1-L4)
-2. **Dry-run / preview** the operation (L2+)
-3. **Confirm** with user (L3+)
-4. **Execute** and capture output
-5. **Log** what was done with rollback info (L2+)
+## Risk, proportional ceremony
 
-## Environment and Precedence Rules
+| Level | Typical action | Handling |
+|---|---|---|
+| L1 | Status, diff, bounded read-only query | Proceed within read-access rules |
+| L2 | Authorized local commit, topic-branch fast-forward push | Short preview, execute, read back |
+| L3 | Shared branch push/merge, PR publication, infrastructure/API writes | Verify named target, effects and existing authorization; ask only if missing |
+| L4 | Force push, hard reset, destructive deletion, schema/data loss | Exact reviewed preview, explicit approval and recovery plan |
 
-- An environment you cannot classify is **production** until proven otherwise. Production targets are treated one risk level higher (a production L3 gets L4 ceremony).
-- L3+ confirmation must name all of: (1) the exact command/action, (2) the environment and target, (3) whether it is read-only or mutating, and (4) the expected effect and scope. A bare "Proceed? (yes/no)" without those items is not confirmation, and the user's original request does not count as confirmation for L3+.
-- When another active skill defines a stricter boundary for the same operation (e.g. a QA or deployment skill with its own environment boundary), the stricter rule wins.
+A topic push can trigger CI or preview deployment; discover meaningful side
+effects before treating it as L2. "Reversible" does not mean cost-free.
 
-## Safety Protocol
+## References
 
-Read [cookbook/safety-protocol.md](./cookbook/safety-protocol.md) - **ALWAYS load this first**
+The policy above is canonical. Read only the relevant domain; "confirm" in a
+recipe means establish authorization under this policy, not automatically ask
+again. Examples are not authority.
 
-## Operation Domains
+- Git, CI and PRs: [dev-workflow.md](cookbook/dev-workflow.md).
+- Infrastructure: [infrastructure.md](cookbook/infrastructure.md).
+- Databases/APIs: [data-services.md](cookbook/data-services.md).
+- Files/processes/secrets: [local-system.md](cookbook/local-system.md).
+- Multi-step or uncertain operations: [safety-protocol.md](cookbook/safety-protocol.md).
 
-### Infrastructure (Docker, K8s, Cloud)
-Read [cookbook/infrastructure.md](./cookbook/infrastructure.md)
-
-### Dev Workflow (Git, CI/CD, PRs)
-Read [cookbook/dev-workflow.md](./cookbook/dev-workflow.md)
-
-### Data & Services (DB, APIs, Caches)
-Read [cookbook/data-services.md](./cookbook/data-services.md)
-
-### Local System (Files, Processes, Env)
-Read [cookbook/local-system.md](./cookbook/local-system.md)
-
-## Risk Levels
-
-| Level | Impact | Requires | Examples |
-|-------|--------|----------|----------|
-| **L1** | Read-only, no side effects | Nothing | `git status`, `docker ps`, `ls` |
-| **L2** | Local, reversible changes | Preview | `git commit`, file edits, `docker build` |
-| **L3** | Remote or hard-to-reverse | Dry-run + Confirm | `git push`, `docker push`, deploy, DB write |
-| **L4** | Destructive or irreversible | Dry-run + Explicit Confirm + Rollback plan | `drop table`, `rm -rf`, force push, scale down |
-
-## Audit Trail Format
-
-After every L2+ operation, output:
-
-```
---- OPS AUDIT ---
-Action: {what was done}
-Risk: L{n}
-Scope: {what was affected}
-Reversible: {yes/no}
-Rollback: {how to undo, or "N/A"}
------------------
-```
+Report one compact outcome per coherent operation: changed scope, observed
+result, important residual effects and recovery when material. No audit block
+for every file or command. Stop on unexpected state and inspect before retrying.

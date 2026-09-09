@@ -7,32 +7,37 @@ not in the trenches pick up the incident and finish it. It has two halves:
 
 ## Gates
 
-Derive final wording from the resolved standard; these map to its sections.
+Derive final wording from the resolved standard; these map to its Investigation
+Handover Standard section. **If the standard you resolved has no such section** --
+today it lives in the embedded snapshot only -- grade these gates as usual but tag
+them `(advisory)`, report them under the advisory heading, and keep them out of the
+`BLOCKED:` line: a requirement the live standard does not make cannot block a
+decision (SKILL.md, "Does the resolved standard contain what the rubrics enforce?").
 
 | Gate | What passes |
 |---|---|
 | `severity-classified` | Explicit P0-P3 with reasoning. |
-| `trigger-sweep` | Every full-postmortem trigger explicitly checked: money/data corruption, multi-tenant impact, >15min core-flow degradation, silent issue, repeat incident class, backfill/repair needed, unclear rollback. "None fired" must be stated, not implied. |
-| `detection-source` | How was this found: alert, customer, support, manual inspection, accident. If manual/customer/accident, the SILENT trigger fires -> full postmortem required. |
+| `trigger-sweep` | Every full-postmortem trigger gets its OWN row -- money/data corruption, multi-tenant impact, >15min core-flow degradation, silent issue, repeat incident class, backfill/repair needed, unclear rollback -- each `true` / `false` / `unknown` with evidence and source. A blanket "none fired" is `claimed`: a `false` needs its reason. Any row left `unknown` forbids concluding `full_postmortem: not-required`. |
+| `detection-source` | How was this found: alert, customer, support, manual inspection, accident. The SILENT trigger fires on BOTH conditions the standard names -- no alert fired AND discovery by customer/support/manual inspection/accident. An alert that fired and was ignored is a different problem, not a silent issue. |
 | `incident-window` | First-seen and current status. The window opens when the failure STARTED (often the regressing deploy), not when it was observed. A recurring cron bug's window is "every hour since <deploy>", not one burst. |
 | `affected-services` | All services in the chain, producer to victim. |
 | `production-evidence` | Measured numbers, timestamps, linked queries/dashboards/logs. Claims without links are `claimed`, not `documented`. |
-| `root-cause` | Explains BOTH the production symptom and the code/system behavior. Code links to the exact offending lines. |
+| `root-cause` | Explains BOTH the production symptom and the code/system behavior, with a typed locator for whichever it is: exact code lines, config revision, infrastructure plan/change, data migration, dependency advisory or version, or process control. Code links when the cause is code -- do not demand offending lines for a config or infrastructure regression. |
 | `causal-chain-to-producer` | Chain traced to the ORIGINATING producer, not the visible victim. If the analysis stops at the service that errored, it stopped early. |
 | `mitigation-vs-root-cause` | Explicit: root cause fixed / mitigated / partially fixed. "Band-aid" honesty in the summary, not buried. |
 | `follow-up-if-not-fixed` | If mitigated/partial: Linear ticket + owner + target date + risk-if-delayed + interim detection. ALL five. This is the gate mitigated incidents most often fail. |
 | `impact-analysis` | The standard's seven questions answered: who affected, window, data lost/delayed/duplicated/wrong, money/payment/auth/notification impact, backfill/replay/comms needed, how impact-stop was verified, what remains unknown. Downstream customer-facing impact, not internal error counts. |
-| `recurrence-check` | Other services/integrations/tenants with the same pattern checked and listed. In a multi-integration codebase, "do the sibling integrations have the same hourly full-pull?" is the question. |
+| `recurrence-check` | Other services/integrations/tenants with the same pattern checked and listed. In a multi-integration codebase, "does QBO/Xero/HaloPSA have the same hourly full-pull?" is the question. |
 | `tests-specified` | Tests that would have FAILED before the fix, including a negative regression test for any dangerous shortcut identified. |
 | `detection-improvement` | Alert/dashboard/log/metric/runbook improvement, or an explicit written "no" with reasoning. |
 | `linear-tracking` | The investigation is tracked in Linear. A 700-line report with zero Linear links fails this gate. |
-| `unknowns-honest` | Unknowns written as unknowns, each with what would be needed to know. |
+| `unknowns-honest` | Unknowns written as unknowns, each with what would be needed to know. This is the ONLY gate an honest unknown passes -- the gate the unknown is about (`impact-analysis`, `recurrence-check`, a trigger row) stays `UNKNOWN` and still blocks closure. |
 
 ## Analysis Quality Bar
 
-These are what separate a great handover from a compliant one. Coach toward them;
-report a `quality:*` row only where it changes a verdict or earns a place in the work
-list -- this is a coaching bar, not five more rows to fill.
+These are what separate a great handover from a compliant one. Coach toward them.
+Report a `quality:*` row only where it changes a verdict or earns a place in the
+work list -- this is a coaching bar, not five more rows to fill.
 
 - `quality:evidence-per-claim` -- every claim is paired with a code link or runtime
   evidence. "The consumer drops UpdatedSince" plus the line link plus the log line
@@ -50,11 +55,14 @@ list -- this is a coaching bar, not five more rows to fill.
 
 ## Reference Exemplar
 
-The analysis-quality bar comes from a real handover (a webhook-burst incident
-against a billing integration): complete causal chain with evidence per step,
-exemplary mitigation-vs-root-cause honesty, a model dangerous-non-fix section, and
-honest unknowns. It is ALSO the compliance lesson: when first validated, it failed
-a large number of standard gates despite the analysis quality. Excellent analysis
+The credit memo webhook burst handover (`svc-webhooks`, 2026-07) is the
+analysis-quality bar. It is OPTIONAL context, not a path this skill resolves: it
+lives in the org's incident archive, and if you cannot find it, skip this section
+entirely rather than hunting for it. Why it is the bar: complete causal chain with
+evidence per step, exemplary mitigation-vs-root-cause honesty, a model
+dangerous-non-fix section, and honest unknowns. It is ALSO the compliance lesson:
+when first validated it failed a large number of standard gates despite the
+analysis quality. Excellent analysis
 and an unclosed incident are not the same thing -- that gap is exactly what this
 skill exists to catch.
 

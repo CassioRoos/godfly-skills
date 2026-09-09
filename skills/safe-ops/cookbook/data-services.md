@@ -55,6 +55,9 @@ SELECT COUNT(*) FROM <table> WHERE <conditions>;
 CREATE TABLE <table>_backup_<date> AS
   SELECT * FROM <table> WHERE <conditions>;
 
+-- Note: this backup table persists until someone drops it. Record it in the
+-- audit trail and drop it once the change is verified.
+
 -- Step 3: Present rollback plan:
 -- "INSERT INTO <table> SELECT * FROM <table>_backup_<date>"
 
@@ -169,6 +172,19 @@ redis-cli DBSIZE
 redis-cli FLUSHDB
 ```
 
+## Log Operations
+
+Reading logs is free — bound the window and the volume so you get a diagnosis
+rather than a dump. Truncating or force-rotating is L3: it destroys evidence,
+not service, so check first whether an open incident or investigation depends on
+the retained window.
+
+**Deleting audit or access logs is never an agent's call, at any level.** They
+exist to be reviewed by someone other than whoever acted; removing them destroys
+the record of who did what and is indistinguishable from a cover-up whatever the
+intent. If a retention job or documented purge genuinely requires it, that is the
+user's explicit decision and the basis goes in the audit trail.
+
 ## Queue Operations
 
 ### View (L1)
@@ -183,6 +199,20 @@ redis-cli FLUSHDB
 # Backup: dead-letter or dump messages first
 # Confirm, then purge
 ```
+
+## Data Boundary
+
+Querying real data, including PII, is normal authorised work — no gate, no
+ceremony. Session output and local memory are inside the trust boundary.
+
+The line is **leaving the network**: never put real customer data into a public
+repository, a public issue or PR, an external service, or anywhere outside
+internal systems. Internal threads are a judgment call the user owns — for a
+critical incident, sharing the actual record is often the right call.
+
+When writing to something durable and internal (a bug artifact, a report), keep
+the values if they carry diagnostic weight. Redact only when the artifact's
+destination is outside.
 
 ## Environment Awareness
 

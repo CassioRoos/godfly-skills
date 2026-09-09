@@ -73,15 +73,12 @@ navigating, confirm the expected user is logged in. If it is the wrong account o
 logged out, **stop and ask** — re-authenticating silently can land you on the
 wrong tenant and invalidate the whole run.
 
-**Whether the session persists at all is server configuration, not something you
-can fix mid-run.** The browser automation wants a persistent profile pinned to a
-known logged-in user — for the Chrome DevTools MCP that means launching it with
-`--user-data-dir <a dedicated dir>`, logging in there once, after which it
-survives across runs. `--isolated` does the exact opposite, a throwaway profile
-each time, so it must not be set; `--browser-url` is the alternative, attaching
-to a Chrome that is already running. If the profile is not persistent or not
-logged in, say so and point at the config — then re-run. Do not burn the run
-trying to authenticate your way out of it.
+Use the browser/session the user named and the currently available browser
+provider. Read its live documentation before selecting or creating a session;
+do not impose a DevTools launch configuration on CUA or edit global settings.
+Keep the user's authenticated session intact. If the required identity or an
+isolated test context is unavailable, record the blocker; do not log the user
+out, extract browser credentials, or silently change accounts.
 
 ## Clean up, including on failure
 

@@ -46,7 +46,7 @@ It is never allowed to drift from the node files: touch a node, touch the index.
 ---
 claim: <the assertion that was contested, one sentence>
 verdict: held | yielded | synthesized
-tier: S | A | B | C           # strongest evidence backing it; scale per evidence-grounding
+tier: S | A | B | C           # strongest evidence backing it; scale per the hub's Challenge Structure
 date: YYYY-MM-DD
 repo: <repo name>
 anchor-sha: <HEAD sha at write time>

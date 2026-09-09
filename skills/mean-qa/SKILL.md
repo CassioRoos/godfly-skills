@@ -1,280 +1,117 @@
 ---
 name: mean-qa
-description: Adversarial QA — design and run test campaigns that find defects a happy-path pass misses, with evidence-backed verdicts and re-runnable cases. Use when asked to QA a feature, plan or run a test campaign, prove a change works, verify on staging, test a flow in a browser, capture QA evidence, or write a verification section for a PR.
+description: Adversarial QA campaigns with persistent .proof evidence and re-runnable cases. Use to QA a feature, test a browser flow, verify a change or staging build, design a test campaign, or prepare a PR verification section. Local evidence is mandatory; publishing is a separate authorized action.
 ---
 
 # MeanQA
 
-Find the defects. Everything else in this file exists to serve that.
+Find defects a happy-path pass misses. Preserve what was actually tested,
+including passing, failed, blocked, and interrupted work. Never confuse a test
+plan with a run or a screenshot with working behavior.
 
-You are already competent at testing. This skill is not here to teach you what a
-boundary case is — it is here to make you ask the four questions competent
-testers skip, to stop you reporting things that are not defects, and to leave
-behind cases someone else can re-run. Nothing more.
+## First action: create the proof
 
-## The output rule that outranks the others
+Every campaign gets `<project-root>/.proof/<timestamp-slug>/PROOF.md`,
+including planning-only and blocked campaigns. Before HTTP/browser/database
+probes or test execution, run:
 
-**A section that carries no finding does not get written.** No empty case stubs,
-no evidence tables of `n/a`, no coverage manifest where every row says "not
-reached", no bug index with no bugs, no note about where files *would* go, no
-session sheet for a session that produced nothing. Bookkeeping follows findings;
-it never precedes them.
+```sh
+sh <skill-dir>/scripts/start-proof.sh <project-root> <run-slug> <environment> <build>
+```
 
-**The one exemption: captured evidence of what you looked at.** A screen you
-drove, a request you issued, a state you reached — these belong in the document
-whether or not they turned up a defect, because "what was tested" is half of
-what the reader came for and a healthy screen is the only proof that it was
-looked at. This rule deletes *bookkeeping about* work; it never deletes the
-record *of* work. A run that shows only its failures has told the reader what is
-broken and left them guessing what is covered.
+Derive the project root from the app/service under test; honor a user-specified
+artifact location. Use `unknown` for metadata not yet established. Read back
+the returned document before any probe. The helper never overwrites an earlier
+run and publishes a nonempty initial document. If you are only designing,
+immediately mark it `DESIGNED — NOT RUN`; if blocked, record `BLOCKED`,
+the failed prerequisite and next action. No empty "successful" report.
 
-**Never name this methodology or its machinery in the deliverable.** Not the
-skill, not its rules by number, not its internal terms. The reader wants the
-risk, not your process vocabulary. If a sentence would need a glossary, rewrite
-it.
+If creation fails, stop probes, report the refused path and use another
+user-permitted persistent location if available. Never pretend the file exists.
+This is deterministic **when invoked**, not a runtime hook: skill instructions
+cannot guarantee capture if the agent bypasses them or is killed. An abandoned
+`IN PROGRESS` report means incomplete, never pass.
 
-**Cut process, never proof.** The deliverable carries no line describing your own
-method — but **captured evidence is never trimmed to save space.** These are
-opposite instincts and confusing them ruins the document in one direction or the
-other.
+Update the report and case artifacts after each meaningful case, before the next
+one. Save the pre-change state before changing it. On normal completion record
+the actual end time, verdict, coverage and remaining gaps; on interruption,
+record `INCOMPLETE` if execution still permits a write. Do not overwrite earlier
+runs or silently remove evidence. Keep .proof local/private; check ignore rules
+before staging and never automatically commit its contents.
 
-- *Delete:* taxonomy, methodology narration, restatement, tables of `n/a`,
-  section headers with nothing under them, structure emitted because a template
-  had a slot.
-- *Never delete:* a request you issued, a response body you received, a status,
-  a duration, a screenshot, a query and its literal output. **A run that captured
-  fifty payloads prints fifty payloads.** Long is correct when long is evidence;
-  collapse it behind `<details>` so the page stays scannable, never by
-  summarising it away.
+## Load only what the task needs
 
-The test is not length. It is whether a line carries risk information or proof.
-A 1500-line document of real captured payloads is excellent. A 300-line document
-of process description is not.
+- Always read [findings.md](references/findings.md): oracle, false-positive
+  control and honest verdicts.
+- Planning: read [attack.md](references/attack.md) and
+  [cases.md](references/cases.md). Mark every proposed case not run.
+- Execution: read [environment.md](references/environment.md) and
+  [evidence.md](references/evidence.md) before probing. Add attack/cases when
+  designing new cases, not when simply re-running existing ones.
+- Report formatting: read [report.md](references/report.md) when writing the
+  completed report.
+- External publishing only: read [publishing.md](references/publishing.md)
+  once publishing is requested or already authorized. A PR existing, or a
+  request to verify a PR, does not authorize uploads, comments or body edits.
 
-## Before you start: are you executing anything?
+## Four questions before the happy path
 
-Answer this first, because it decides what you load and what you may claim.
+1. When a dependency cannot answer, what value does it return and how does
+   the caller distinguish failure from "nothing found"? Trace error channels;
+   do not assume the absence of an error return means success.
+2. What is the harm in both directions — wrongful action and wrongful denial?
+3. What invariant must always hold, and what sequence breaks it? Check
+   conserved value, one intent/one effect, legal transitions and ownership.
+4. What is irreversible — charges, disclosures, notifications, deletion?
+   Prioritize by consequence and recoverability, not convenient tests.
 
-**Always load** [attack.md](references/attack.md) (what to attack),
-[findings.md](references/findings.md) (what earns the right to be reported),
-[cases.md](references/cases.md) (the unit someone else can re-run) and
-[report.md](references/report.md) (the deliverable). Those four are the skill;
-the rest is conditional.
+Then run applicable cheap probes against in-scope, authorized test targets:
+malformed input, wrong types, missing/extra fields, untrusted client values,
+boundaries, duplicate/concurrent requests and unauthorized identities.
+Record skipped or unavailable probes with the coverage consequence.
+A mandate to test never authorizes a production mutation or another tenant.
 
-- **No** — you are designing a campaign, reviewing code, or planning. Those four
-  and nothing else. Do not load anything about evidence, environments, or
-  artifacts; you will produce none. Every case is *designed, not run*. Say so
-  once, near the top, and mark every case accordingly. Never write a verdict that
-  implies a run happened.
-- **Yes** — you have a reachable system and credentials. Add
-  [evidence.md](references/evidence.md),
-  [environment.md](references/environment.md) and
-  [publishing.md](references/publishing.md) before the first case executes.
-  **A run that executes anything leaves a run directory on disk.** Answering
-  "yes" settles that; it is not a second judgement call to make later, and there
-  is no version of an executed run whose only trace is a chat message. Load
-  publishing.md and follow it.
+Predict the oracle and fails-if condition before each case. Use stable case
+IDs, exact sanitized inputs, observed outcome and a repeatable reproduction.
+A surprising intentional policy is a policy question, not automatically a bug.
+Rank findings by demonstrated consequence; name unknown causes as unknown.
+Run the relevant baseline before an authorized fix and the same proof plus
+focused regressions afterward. QA alone does not authorize fixing.
 
-[findings.md](references/findings.md) is not optional in either direction. It
-carries the rule that stops you reporting a non-defect, and a campaign that
-designs badly and a campaign that executes badly both fail there.
+## Evidence volume without token waste
 
-Getting this wrong in the "yes" direction is the more expensive error: it
-produces documents that look like test results and are not.
+Capture as much **relevant, safe, nonduplicative evidence** as available:
+commands and exit codes, requests/responses with timings, direct persistence
+reads, logs/traces, browser steps, before/after screenshots, console/network,
+head/build identity and environment scope. Mark unavailable channels explicitly;
+missing telemetry is not a clean result. Synthetic fixtures first.
 
-## Evidence outlives the conversation
+Keep complete sanitized captures in `cases/<id>/`; give every results row a
+matching evidence block with observation, decisive excerpt and links to complete
+files. Embed screenshots in the report. Do not paste large bodies repeatedly
+into the report or conversation. Preserve every executed case, not merely a
+sample. Cap oversized/continuous captures with an explicit bound and truncation
+notice; never claim an uncaptured remainder was preserved.
 
-Everything you capture while executing lands in a run directory **at the root of
-the project under test** — `<project-root>/.proof/<date-time-slug>/` — not a
-temp directory, not a scratchpad, and never only the conversation. The person who
-asked for the test will look for it in their project, and an image that exists
-only in a transcript stops existing when the session closes.
+Keep tool output bounded: inspect indexed files and targeted excerpts; don't
+re-read all logs or full reports after each append. Chat gets findings, coverage,
+gaps and a proof link. More evidence on disk need not mean more model tokens.
+Report measured usage only if exposed by the runtime; otherwise label token
+estimates and do not invent a dollar cost.
 
-**Derive the location; do not ask for it.** The run directory belongs to the
-thing under test: the root of the app or service you are testing — the directory
-holding its manifest (`package.json`, `go.mod`, `pyproject.toml`, `Gemfile`) or
-its `.git`. In a monorepo that is the service's own root, not the repository's.
-Work it out from what you are testing and use it. Only a path the user names
-explicitly overrides this; "where should I put the evidence?" is not a question
-worth spending their attention on.
+## Safety and finish
 
-**Open the document before the first case, and grow it as you go.** The run
-directory and `PROOF.md` are created together, before anything executes — header,
-environment, a verdict line that reads `IN PROGRESS`, an empty results table. Every
-case that runs appends its row and its evidence block *then*, and every capture is
-embedded *then*, not collected for a closing write-up. The closing pass only rewrites
-the verdict, the worst-first list and the residual risk. Runs end early for reasons
-you do not control — a usage limit, an API error, a compacted context, a user who
-had to leave — and a run that writes its report last leaves twenty screenshots and
-thirty case folders with no document saying what they prove. A document that grows
-with the run is the only kind that survives the run being cut short; if it is cut
-short, the verdict line says so (`INCOMPLETE — stopped after case N`) instead of
-lying by absence.
+Never print, extract, paste or persist credentials, session cookies, auth
+headers or personal data. Redact before writing or displaying artifacts;
+screenshots and network bodies can leak secrets too. If safe capture is
+impossible, retain sanitized observations and mark the resulting proof gap.
 
-**Losing evidence is the one failure with no recovery.** A response you did not
-save, a screen you did not capture before you changed it, a query you ran and did
-not record — none of it can be reconstructed afterwards, because the state it
-described is gone. So capture first and tidy later, keep the pre-change state
-before you change anything, and treat a refused write as an obstacle to route
-around rather than a reason to carry on without evidence. Both mechanics are in
-[evidence.md](references/evidence.md).
+An unknown environment is production. Production stays bounded/read-only under
+the user's applicable confirmation rules. Prove a mutation target is synthetic
+and the action authorized before using it. Do not switch accounts, log the user
+out, change global browser configuration, or publish evidence just to finish QA.
 
-A standing instruction in your environment against creating markdown or
-documentation files unprompted does not reach this. That instruction is about
-unsolicited commentary; a run's evidence is the deliverable of the work you were
-asked to do. If something genuinely blocks the write — a denied path, a read-only
-tree — **say so in your summary, name the exact path that was refused, and never
-describe an artifact you did not write.** Silently finishing with no artifacts is
-the one outcome that is never acceptable.
-
-## The four questions
-
-Ranked by how often they find what nothing else does. Work them before the
-obvious cases, not after.
-
-1. **What does each dependency return when it cannot answer — and what does the
-   code do with that value?** Every service, cache, lookup, flag, or table the
-   operation consults. A call with no error return cannot fail, so it returns
-   `""`, `false`, `0`, or an empty list instead — and then a gate that looks for
-   a match finds none and lets everything through. *"No problem found" and "I
-   could not check" must never be the same value.* This is the single
-   highest-yield question in this file and the one most reliably skipped.
-2. **What is the harm, in both directions?** Wrongful action and wrongful
-   denial are both harm. A safety gate that blocks a legitimate emergency is a
-   defect, not a missing feature. Campaigns overwhelmingly test only the first
-   direction.
-3. **What must be true no matter what — and what sequence breaks it?** Name the
-   invariants (value conserved, one intent one effect, legal states only, actors
-   touch only what they own, anything announced actually happened), then attack
-   them. Features are just how invariants are exposed.
-4. **What is irreversible here?** Anything that cannot be undone — a shipment, a
-   sent notification, a settled transfer, a disclosed record — deserves the
-   harshest testing, because there is no recovery path.
-
-Details, axes, and how to derive a harm model in an unfamiliar domain:
-[attack.md](references/attack.md).
-
-## Then the cheap probes — in blast-radius order, until the budget runs out
-
-The four questions find the interesting defects. These find the ones that are
-merely expensive, and they are the ones a campaign chasing interesting defects
-reliably walks past. They cost one request each. The list in full — malformed
-bytes, wrong types, missing and extra fields, every client-supplied value the
-server should not trust, boundaries, the repeat and the concurrent repeat, the
-unhappy identities — is the table in [attack.md](references/attack.md).
-
-**Order the input-accepting surfaces by what a defect there costs, then probe them
-in that order and stop when your budget runs out — not when the list does.** Every
-surface you did not reach is a `no` row in the coverage table, naming the probes it
-is missing. A run that probed the four surfaces that move money and recorded the
-read-only endpoints as unprobed is a complete run. A run claiming eight probes
-against twenty surfaces has either sampled silently or written rows it did not
-execute, and both are worse than the honest `no`.
-
-**Read the error contract, not just the status.** A 500 where a 400 belongs is a
-defect even when the request was nonsense — it means an unhandled path, and the
-body usually names an internal detail an attacker would like.
-
-An endpoint you called only with well-formed input has not been tested; it has
-been demonstrated.
-
-## Then the ordinary discipline
-
-- **Rank by blast radius**, never by test-writing convenience: silent money or
-  data loss → wrong value visible later → authority violation → corrupt or stuck
-  state → wrong error contract → cosmetics. A campaign cut short must still have
-  run the important part.
-- **Predict before running.** State the expected result and what would make you
-  call it broken, *before* you test. A scenario whose outcome you cannot predict
-  is an exploration — label it, because an exploration that "passes" proves
-  nothing.
-- **Write cases, not topics.** Stable ID, plain-language title naming the
-  failure, literal inputs, explicit `Fails if`. See
-  [cases.md](references/cases.md). This is what makes the work re-runnable by
-  someone who is not you, and it is the main thing a good ad-hoc review lacks.
-- **Name the oracle or it is not a defect**, and never claim verification. See
-  [findings.md](references/findings.md) — the two rules there that matter most
-  are the downgrade rule and the safety language.
-- **Documented, signed-off behaviour is not a defect.** When the spec, a code
-  comment, or the team says a surprising behaviour is intentional, your job is to
-  test it *as designed* — does the stated bound actually hold, is it enforced
-  where they think, does it interact badly with something else — and to ask if
-  the policy looks wrong. Filing it as a defect anyway, having read the note, is
-  the most expensive mistake available to you: it tells the reader you did not
-  read their handoff, and it discredits every real finding beside it. If you
-  believe the signed-off decision is wrong, say so **as a question**, in its own
-  section, never in the defect list.
-
-## Safety
-
-- Prove a mutation target is fake or safe before mutating it. If you cannot,
-  say so and move to another case.
-- An environment you cannot classify is production. Production gets read-only
-  access, and only after explicit confirmation naming the action, the target,
-  and the scope. Never write, never DDL, never replay, never purge.
-- Never write credentials, tokens, cookies, private URLs, or personal data into
-  any artifact. Prefer synthetic fixtures so the artifacts are safe to keep.
-- Do not fix what you were asked to verify unless the user opted in. Document
-  it with evidence first.
-
-## Ask, rather than guess, when
-
-Expected behaviour is undefined or contradicted by the docs · safe mutation
-scope cannot be proven · credentials or access block the run · a missing tool
-changes the verdict · the finding is really a product-policy question. Do not
-ask what a read-only check would answer.
-
-## The deliverable
-
-Write it so an engineer who was not in the room can answer five questions
-without asking you: **what was tested** and what working meant · **how it was
-tested**, as the flows actually driven · **what happened**, with the proof
-attached · **why each failure happens**, the mechanism and not just the symptom
-· **what to do next**, and what nobody has checked. The full format, with a
-worked example, is [report.md](references/report.md) — follow it.
-
-Organise by flow or surface, not by evidence type, and explain around the tables.
-A table carries results; prose carries the reasoning a reader needs to trust
-them.
-
-**If you executed anything, the proof goes in the document.** Every case that
-ran carries the request exactly as issued (copy-pasteable, secrets redacted),
-the literal response body, the status, and the wall-clock duration — plus the
-direct database read, the console and network state, and before/after
-screenshots where they apply. A reviewer must be able to re-run any row without
-asking you a question. See [evidence.md](references/evidence.md) and
-[publishing.md](references/publishing.md).
-
-**The document already exists when you reach this section** — you opened it with
-the run directory and appended each case as it ran. Finishing means rewriting the
-verdict and the summary over a body that is already complete, not writing the body.
-
-**Every row in a results table has a matching evidence block. Count them before
-you finish.** Thirty rows means thirty blocks. A table that asserts results it
-does not back is worse than no table: it *looks* like proof, so nobody checks,
-and the one row that was actually wrong ships. If you genuinely have nothing
-retained for a row, mark that row `unproven` — do not let it sit among the ones
-you can prove. Sampling is not an option here; "representative examples" is how
-a document stops being evidence.
-
-**Every failure carries its mechanism.** A ❌ with no explanation produces a
-ticket saying "endpoint broken" and an engineer who has to redo your work. State
-what should have happened, what did, *why* it does, and what it costs. If you
-could not determine the cause from outside, say that plainly — an honest "I
-could not tell whether this is the handler or the store" is useful; an invented
-cause is not.
-
-**The verdict is yours; acceptance is theirs.** A stakeholder can accept a risk —
-by name, with a date and a reason — and that acceptance goes into the document as
-its own recorded decision beneath the verdict. It never rewrites the verdict. A
-build with an unfixed fatal defect stays HOLD whoever signs; "SHIP, on <name>'s
-authority" is a decision record, not a test result, and the two must stay
-distinguishable to whoever reads the file after the incident. Authority, tenure,
-and "no complaints so far" are not evidence about the defect: say what the
-offered evidence can and cannot detect, offer the fastest route to a verdict you
-would sign, and leave the verdict where the evidence put it.
-
-If the summary and the detail disagree, the summary is wrong.
-
-State plainly that the report has not been independently reviewed, when it
-hasn't.
+Before finishing, check each row has real, readable evidence files, all image
+links resolve, and the report matches what ran. Leave user tabs/sessions intact;
+clean up only resources created for this run. State what was not tested.
+A stakeholder's risk acceptance is separate from the evidence-based verdict.

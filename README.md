@@ -1,170 +1,134 @@
 # godfly-skills
 
-**19 skills for Claude Code and Codex CLI that form one system: an adversarial
-reviewer, the evidence-grounded toolkit it draws on, the production-ops
-discipline it feeds into, and the gauntlet that proves any of it actually works.**
+**16 skills for evidence-backed engineering review, analysis, QA, incident
+validation, and task continuity.** Morpheus provides focused investigation and
+engineering judgment; Godfly provides an alternative review protocol with commands
+and a durable verdict graph. The remaining skills handle specific tasks when needed.
 
-Not a grab-bag. Every skill here has a deliberately carved territory and knows
-exactly which sibling to hand off to when the question isn't its job — and the
-whole analysis spine links to one shared evidence standard instead of restating it.
-
-## Why yet another skills repo? 🙃
-
-Fair question. There are collections out there advertising hundreds of skills,
-toolkits with more of everything, and several published "adversarial reviewer"
-personas. Here is the honest pitch:
-
-**Most published skills are personas. These are protocols.**
-A persona tells the model to "act like a tough reviewer." A protocol tells it what
-evidence it must gather *before it is allowed to have an opinion*, in what order,
-when it must yield, and what a finished verdict looks like. godfly's Steelman
-Guarantee is non-skippable: before challenging anything it restates your actual
-ask, your position at its strongest, and tests your *broadest* invariant before
-chasing narrower theories. A challenge against a position you don't hold is just
-noise with confidence.
-
-**No two skills fight over the same trigger.**
-The most common failure of skill collections is five review skills that all
-activate on "review this." Territories here are deliberately carved:
+## Choose a skill
 
 | Situation | Skill |
 |---|---|
-| "Challenge this / poke holes / call my bullshit" | **godfly** |
-| Something is failing **right now** | **troubleshooting-investigator** |
-| Why did that failure *really* happen (post-hoc) | **root-cause** |
-| It works, but nobody understands it | **deep-dive** |
-| How could this fail in the future | **failure-analysis** |
-| Argue the strongest case for the *other* side | **devils-advocate** |
-| What are we taking for granted | **assumptions-check** |
-| Choose between competing approaches | **competing-hypotheses** |
-| Attack paths + launch readiness | **red-blue-review** |
-| Imagine the failure before starting / write it up after | **premortem-postmortem** |
+| Focused review, decisions, troubleshooting, research, or a requested deploy watch | [morpheus](skills/morpheus/SKILL.md) |
+| Godfly's adversarial review protocol, commands, and durable verdict graph | [godfly](skills/godfly/SKILL.md) |
+| Surface and test hidden assumptions | [assumptions-check](skills/assumptions-check/SKILL.md) |
+| Compare architecture, technology, or strategy options | [competing-hypotheses](skills/competing-hypotheses/SKILL.md) |
+| Map a working but unfamiliar system | [deep-dive](skills/deep-dive/SKILL.md) |
+| Prioritize component and dependency failure modes | [failure-analysis](skills/failure-analysis/SKILL.md) |
+| Make the strongest case for the opposing position | [devils-advocate](skills/devils-advocate/SKILL.md) |
+| Examine attack paths and prevention, detection, containment, and recovery | [red-blue-review](skills/red-blue-review/SKILL.md) |
+| Anticipate a failure or write an evidence-backed postmortem | [premortem-postmortem](skills/premortem-postmortem/SKILL.md) |
+| Run a QA campaign with persistent, re-runnable proof | [mean-qa](skills/mean-qa/SKILL.md) |
+| Validate incident handovers, fix PRs, and closure claims | [incident-validator](skills/incident-validator/SKILL.md) |
+| Execute an authorized remote, destructive, or security-relevant operation | [safe-ops](skills/safe-ops/SKILL.md) |
+| Keep durable working state for one task | [toolshed](skills/toolshed/SKILL.md) |
+| Hand work to another session without reconstructing the thread | [handoff](skills/handoff/SKILL.md) |
+| Write a technical spec, ADR, or RFC | [spec-adr-builder](skills/spec-adr-builder/SKILL.md) |
+| Test whether a skill improves results against a no-skill control | [gauntlet](skills/gauntlet/SKILL.md) |
 
-**Evidence is a shared standard, not a vibe.**
-`evidence-grounding` is the canonical evidence-standards reference; the whole
-analysis spine links to it instead of restating it. Challenges carry evidence
-tiers, and the house rule is blunt: *agreement without evidence is a bug*.
+Godfly and Morpheus overlap on review requests. Select one explicitly when the
+choice matters: Godfly retains its command-driven review and verdict graph;
+Morpheus emphasizes a concise verdict with cited findings, tradeoffs, and proof.
 
-**The ops suite was forged in production, not written for a repo.**
-These rules exist because their absence hurt:
+Morpheus asks when an answer could materially change the result, groups independent
+questions, and follows up as needed. Exhaustive interviewing is explicit-only.
+Its instructions keep each probe tied to an unresolved question, stop investigation
+once the answer is supported and required checks pass, and report blockers when
+further probes add no evidence. They do not impose a fixed question or hypothesis
+quota or automatically chain other skills.
 
-- **mean-qa**'s Environment Boundary: an environment you cannot classify **is
-  production**. A flow passes only when UI, network, and backend layers all
-  confirm — UI-green alone is *unproven*, not pass.
-- **incident-validator** distinguishes "PR merged" from "verified running in
-  production" and asks which one you actually proved. It grades *restraint* —
-  probes you deliberately did NOT run against partner systems — as a quality gate.
-- **safe-ops** classifies every operation L1–L4 with dry-run previews,
-  named confirmation gates, and audit trails.
-- **toolshed** keeps durable working state for one task and then **deletes it at
-  close** — git history is the archive, and decisions promote to ADRs the moment
-  they're made, not when someone remembers.
+For active failures, its [troubleshooting reference](skills/morpheus/references/troubleshooting.md)
+covers containment, reproduction, discriminating tests, and evidence-backed fixes.
+Its [research reference](skills/morpheus/references/research.md) preserves the requested
+question and recommends an option when a choice was requested.
 
-**One library, two runtimes.**
-The same skill files run in Claude Code (`~/.claude/skills/`) and OpenAI Codex
-CLI (`~/.codex/skills/`). Cross-references are relative, so the system stays
-intact wherever you drop it.
+Deployment watching runs only when requested: pin the deployed version, baseline,
+success signal, and end time; compare read-only signals on cadence; corroborate
+delivery with durable outcomes; report anomalies and coverage gaps. Use the project's
+runbook for operational procedures. Incident-validator separately assesses incident
+artifacts against its resolved production-issue standard; it includes a dated
+fallback snapshot when the live standard cannot be reached.
 
-## The system
+## Working principles
 
-```mermaid
-flowchart TD
-    Q{What's the situation?}
-    Q -->|"challenge / review / stress-test"| G[godfly]
-    Q -->|failing right now| TI[troubleshooting-investigator]
-    Q -->|why did it happen| RC[root-cause]
-    Q -->|works but opaque| DD[deep-dive]
-    Q -->|risky operation| SO[safe-ops]
-    Q -->|QA campaign| MQ[mean-qa]
-    Q -->|watching a deploy| DM[deployment-monitor]
-    Q -->|close an incident?| IV[incident-validator]
-    Q -->|multi-session task state| TS[toolshed]
-
-    G --> AC[assumptions-check]
-    G --> CH[competing-hypotheses]
-    G --> EG[evidence-grounding]
-    G --> FA[failure-analysis]
-    G --> RB[red-blue-review]
-    G --> PP[premortem-postmortem]
-    G --> DA[devils-advocate]
-
-    RC --> TI
-    RC --> FA
-    PP --> RC
-    IV --> G
-    IV --> RC
-    TS --> SO
-    TS --> HO[handoff]
-    TS --> SA[spec-adr-builder]
-    TS --> DM
-    DM --> SO
-    EG -.evidence standard.- AC & CH & FA & DD
-```
-
-## The skills
-
-### Flagship
-
-| Skill | What it does |
-|---|---|
-| [godfly](skills/godfly/SKILL.md) | Adversarial collaborator with a non-skippable Steelman Guarantee, evidence-tiered challenges, a live-state PR/incident review gate, a hold/yield rule where evidence decides — not authority — and a permanent verdict graph under `docs/verdicts/` so a settled claim is never re-derived. |
-
-### The adversarial & analysis spine
-
-| Skill | What it does |
-|---|---|
-| [evidence-grounding](skills/evidence-grounding/SKILL.md) | The canonical evidence standard: tiers, precedent search, claim validation. Everything else links here. |
-| [assumptions-check](skills/assumptions-check/SKILL.md) | CIA Key Assumptions Check — surface and rate what's being taken for granted. |
-| [competing-hypotheses](skills/competing-hypotheses/SKILL.md) | Analysis of Competing Hypotheses — map the solution space, let evidence eliminate. |
-| [failure-analysis](skills/failure-analysis/SKILL.md) | FMEA, dependency chains, and real-world failure pattern matching. |
-| [devils-advocate](skills/devils-advocate/SKILL.md) | The strongest possible case for the side nobody is arguing. |
-| [red-blue-review](skills/red-blue-review/SKILL.md) | Attack paths vs. defense controls with a ship/block/spike gate. |
-| [premortem-postmortem](skills/premortem-postmortem/SKILL.md) | Kill the project on paper before it starts; write the honest document after it dies for real. |
-| [root-cause](skills/root-cause/SKILL.md) | Evidence-backed Five Whys from symptom to systemic cause. |
-| [troubleshooting-investigator](skills/troubleshooting-investigator/SKILL.md) | Structured investigation for things failing *now*, with a ranked hypothesis table. |
-| [deep-dive](skills/deep-dive/SKILL.md) | Map a system that works but isn't understood; produce an evidence-backed brief. |
-
-### The production-ops suite
-
-| Skill | What it does |
-|---|---|
-| [mean-qa](skills/mean-qa/SKILL.md) | Adversarial QA campaigns that find what a happy-path pass misses — oracle discipline, a hard prod-safety boundary, and a run directory of embedded screen evidence and replayable cases. |
-| [incident-validator](skills/incident-validator/SKILL.md) | Gate matrix for incident handovers, fix PRs, and postmortems — with live evidence verification and a closure verdict. |
-| [safe-ops](skills/safe-ops/SKILL.md) | L1–L4 risk classification, dry-run previews, named confirmation gates, audit trails. |
-| [deployment-monitor](skills/deployment-monitor/SKILL.md) | Read-only post-deploy evidence gathering, anomaly detection, and cadence summaries. |
-| [toolshed](skills/toolshed/SKILL.md) | Mortal working state for one task under `docs/work/<slug>/` — deleted at close, survivors become ADRs/specs. |
-| [handoff](skills/handoff/SKILL.md) | Compact continuation notes so the next session/agent doesn't reconstruct the thread. |
-| [spec-adr-builder](skills/spec-adr-builder/SKILL.md) | Specs, ADRs, and RFCs with non-goals, alternatives, rollout, and rollback. |
-| [gauntlet](skills/gauntlet/SKILL.md) | Empirically tests whether a skill beats the raw model: planted-flaw fixtures, no-skill control arms, blind judging, pressure tests, cross-model runs via installed CLIs. Every finding becomes a permanent rule in the skill under test. |
+- **Investigate before judging.** Read the real code, configuration, tests, or
+  runtime evidence. Separate observations from inferences and guesses.
+- **Steelman before challenging.** Preserve the user's actual position and
+  constraints. Evidence-backed approval is a valid result.
+- **Test the verdict.** Name what would overturn it and run the cheapest useful
+  check when it is available. Report untested boundaries.
+- **Keep authorization explicit.** Safe-ops previews material effects, executes
+  the authorized scope, and reads back the result. A review does not authorize
+  publication; a PR does not authorize a merge or deployment.
+- **Keep proof durable.** MeanQA records cases and artifacts under `.proof/`;
+  Toolshed holds task state under `docs/work/<slug>/`, with surviving decisions
+  and evidence promoted before close.
+- **Challenge the work, never the person.** Intensity follows the stakes.
 
 ## Install
 
-**Claude Code:**
+The commands below are for a fresh installation. For an existing installation,
+review the upgrade notes below before copying over skill folders.
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/CassioRoos/godfly-skills.git
+```
+
+For Claude Code:
+
+```bash
 mkdir -p ~/.claude/skills
 cp -R godfly-skills/skills/* ~/.claude/skills/
 ```
 
-**Codex CLI:**
+For Codex CLI:
 
 ```bash
 mkdir -p ~/.codex/skills
 cp -R godfly-skills/skills/* ~/.codex/skills/
 ```
 
-Or symlink individual skills if you only want part of the system — but note the
-cross-references: godfly leans on the spine, toolshed leans on the ops suite.
+Both copy commands install the same 16 skill folders. Individual skills can also
+be symlinked. Install the sibling skills referenced by the workflows you use;
+optional skills named in references are not necessarily bundled here. Host-specific
+paths and tool instructions may need adaptation. Tool access and permissions come
+from the host runtime, not from a skill file.
 
-## Design principles
+### Updating an existing installation
 
-1. **Verdict first.** Blocker, impact, evidence, action — never buried under preamble.
-2. **Evidence decides, not authority.** Hold when the evidence holds; yield cleanly when it doesn't.
-3. **Steelman before challenge.** Prove you understood the position before attacking it.
-4. **Unclassifiable environment = production.** Ceremony scales with blast radius.
-5. **State is mortal, decisions are not.** Working notes die at task close; contract-changing decisions promote to ADRs the moment they're made; settled cross-task claims persist as verdict nodes in `docs/verdicts/`.
-6. **Aim at the code, never the person.** Heat scales with stakes, and it's always pointed at the work.
+Review and back up the installed folders you intend to replace. Copying over an
+older installation does not remove obsolete files inside retained skills.
+Replace the selected folders with the corresponding repository folders.
+
+The standalone `root-cause`, `evidence-grounding`, `deployment-monitor`, and
+`troubleshooting-investigator` skills are no longer included. Remove their installed
+folders deliberately if you want the repository's current selection. Useful evidence,
+troubleshooting, causal-analysis, and watch guidance now lives in retained skills;
+this is a consolidation, not a feature-for-feature replacement of every old workflow.
+Updating this clone alone does not change copied installations.
+
+## Validation and evals
+
+Run these helper checks from the cloned `godfly-skills` directory, with Git,
+Python 3, and a POSIX shell available. They use temporary fixtures:
+
+```bash
+sh skills/toolshed/scripts/acceptance.sh
+python3 skills/toolshed/scripts/close-regressions.py
+sh skills/mean-qa/scripts/acceptance.sh
+python3 skills/safe-ops/scripts/acceptance.py
+```
+
+These checks validate helper behavior, not model review quality. Behavioral eval
+fixtures, judge rubrics, and historical example runs live in [evals/](evals/README.md),
+outside the installable skill directories. Keep judge answer keys out of the arm
+being evaluated. Paths in `evals/morpheus/evals.json` are relative to this repository
+root. Existing published runs describe the versions exercised at the time; they
+do not validate later instruction changes. Morpheus's clarification and investigation
+revision has structural validation but no behavioral A/B result yet. Smaller
+instructions alone do not establish better task completion.
 
 ## License
 

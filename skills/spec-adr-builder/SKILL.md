@@ -3,8 +3,10 @@ name: spec-adr-builder
 description: >
   Generate or review technical specs and Architecture Decision Records. Use when the user
   asks for specs, ADRs, RFCs, design docs, decision records, technical requirements,
-  non-goals, alternatives, rollout, or rollback documents.
+  non-goals, alternatives, rollout, or rollback documents. For user-research requirements
+  elicitation use user-research.
 metadata:
+  author: croos
   version: "1.0"
 ---
 
@@ -82,7 +84,12 @@ Proposed | Accepted | Superseded
 
 ## Review Rules
 
+Label proposed, accepted, implemented and deployed states separately. An accepted
+ADR or complete rollout plan does not prove implementation or release completion.
+Pin implementation claims to current code/tests and deployment claims to runtime
+evidence; mark unverified stages explicitly.
+
 - If there are no non-goals, the scope is not controlled.
 - If there are no alternatives, the decision is under-argued.
-- If there is no rollback, the rollout is not finished.
+- If recovery/rollback or irreversibility is unspecified, the rollout plan is incomplete.
 - If there is no validation, it is opinion dressed up as a plan.

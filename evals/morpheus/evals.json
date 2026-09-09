@@ -1,0 +1,120 @@
+{
+  "skill_name": "morpheus",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review this before I merge. Retrying the PSP capture on 5xx is safe, it's just network flakiness on their side and we've been getting paged for failed captures that succeed on manual replay. Code is in capture.go, context in README.md. Challenge it.",
+      "expected_output": "Verdict line first: do not ship / fix first. Steelman preserves the paging-toil motivation. Finding 1 ranked first is the missing idempotency key causing double charge on 5xx-after-commit, cited to capture.go with a line. Float64 amount flagged non-blocking. Does NOT flag psp_client naming, the legacy TODO, or the unused traceID param. Offers 2-3 options with 'do minimum' present and one recommended. Under ~35 lines.",
+      "files": [
+        "evals/morpheus/files/retry/capture.go",
+        "evals/morpheus/files/retry/README.md"
+      ],
+      "expectations": [
+        "First non-empty line is a verdict that blocks the merge (do not / fix first), not ship",
+        "Top-ranked finding is the missing idempotency key causing a double charge on 5xx-after-commit",
+        "Idempotency finding cites capture.go with a specific line number",
+        "float64 amount is flagged as a finding ranked below the idempotency finding (non-blocking or lower)",
+        "Does not flag psp_client field naming, the legacy TODO, or the unused traceID parameter",
+        "Steelman preserves the user's motivation (paging on failed captures that succeed on replay)",
+        "Every finding states a concrete consequence (what breaks), not just that something is wrong",
+        "Offers 2-3 options including a do-minimum or no-retry option, with exactly one explicit recommendation",
+        "Response is 500 words or fewer"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Build me a per-tenant rate limiter for our Go gRPC service (svc-partner-api). Partners are identified by the x-partner-id metadata key. Limits are 100 req/s default, some partners get custom limits from config. We run 3 replicas behind a load balancer.",
+      "expected_output": "Does not just start coding. Gives 2-3 options with cost and failure mode, including reuse of existing libraries (golang.org/x/time/rate per-replica, or a shared Redis-backed limiter for cluster-wide accuracy) and a 'do minimum' option. Names the drivers (per-tenant, 3 replicas means per-replica limits are 3x the intended limit unless shared state). One recommendation with reason and a confirmation step. Then proceeds or asks one precise question. No menu without a pick.",
+      "files": [],
+      "expectations": [
+        "Options with tradeoffs are presented before any code; code is not the primary output",
+        "Identifies that per-replica limiting across 3 replicas yields roughly 3x the configured limit unless state is shared",
+        "At least 2 options, each with a cost or accepted failure mode, and exactly one explicit recommendation",
+        "At least one option reuses an existing library or component (e.g. golang.org/x/time/rate, a Redis-backed limiter, grpc ratelimit middleware) instead of hand-rolling",
+        "Includes a do-minimum or simplest-viable option",
+        "States a confirmation step (how you would verify the limiter works)",
+        "If it asks questions: at most 3, each with why it matters and a default assumption"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I switched the not-found check in GetCustomer from `err == sql.ErrNoRows` to `errors.Is(err, sql.ErrNoRows)` because Repo.Get wraps errors with %w. It's in customer.go. This is right, ship it. Poke holes.",
+      "expected_output": "Approves. Verdict line says ship AND carries approval evidence: what was inspected, what counterexample was tried (e.g. ran or reasoned through a wrapped ErrNoRows), what remains untested. Steelman correct. Zero blocking findings; at most one non-blocking note. Does not manufacture an objection. Under ~10 lines / 150 words.",
+      "files": [
+        "evals/morpheus/files/notfound/customer.go"
+      ],
+      "expectations": [
+        "Verdict is ship / approve",
+        "Ship verdict states what was inspected, what counterexample was tried, and what remains untested",
+        "Zero blocking findings",
+        "At most one non-blocking note or question in total",
+        "Does not manufacture an objection to the errors.Is change itself",
+        "Response is 150 words or fewer"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "quick one: for a Go struct field holding the customer's id, customerId or customerID? we have both in the codebase already",
+      "expected_output": "One verdict line: customerID, Go initialism convention, linter will flag the other. Maybe one sentence about aligning the existing mixed usage. No steelman section, no findings section, no options. Under 5 lines total.",
+      "files": [],
+      "expectations": [
+        "Recommends customerID",
+        "Response is 5 lines or fewer",
+        "Contains no section headers such as Your position, Findings, or Options"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I'm adding a unique index on (tenant_id, external_ref) to the payments table in prod tonight as a single migration, to stop the duplicate-payment bug we saw last week. Challenge it.",
+      "expected_output": "Does not deliver a confident verdict on unstated premises. Asks at most 3 batched questions that each flip the verdict: existing duplicates today (index build fails, and choosing the surviving row is a money decision), DB engine and table size (plain CREATE UNIQUE INDEX locks writes on Postgres; CONCURRENTLY cannot run in a transaction), nullability of external_ref (NULLs are distinct so NULL dupes slip through). Each question states why it matters and a default. Still gives a provisional verdict under the defaults; does not stop at questions. Does not ask anything already stated in the prompt (table name, timing, motivation). Under ~20 lines.",
+      "files": [],
+      "expectations": [
+        "Asks whether duplicate (tenant_id, external_ref) rows exist today",
+        "Asks about database engine and/or raises lock behavior of a non-concurrent unique index build on a hot table",
+        "Asks about or raises nullability of external_ref (NULLs distinct under a unique index)",
+        "At most 3 questions in total",
+        "Each question states a default assumption if unanswered",
+        "Includes a provisional verdict; does not stop at questions",
+        "Does not ask about facts already stated in the prompt (table name, timing tonight, motivation)",
+        "Response is 300 words or fewer"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "GetStatus in fetch.go starts timing out after a few minutes in every pod, details in SYMPTOMS.md. The partner is slow under load even though their status page says otherwise, so I'm going to bump MaxConnsPerHost to 100 and the timeout to 30s and add a retry. Sanity check this before I ship it.",
+      "expected_output": "Verdict: theory does not hold / fix treats symptom. Steelman preserves the partner-is-slow theory. Identifies the real cause: on non-200 (the common 404 while polling) resp.Body is never closed because the close is deferred after the early return (fetch.go, the return before defer), so connections leak; with MaxConnsPerHost 10 the pool exhausts and new requests block until deadline. Restart-fixes-it and partner-p99-fine are explained by this and not by a slow partner. Offers competing hypotheses ranked with a discriminating test each (e.g. count established connections / goroutines after N 404s). Labels the bump-and-retry as symptom treatment. Fix: close body on every path (defer immediately after Do, drain on non-200), proof: a test with an httptest server returning 404 that fails before and passes after. Names what to watch. Calibration labels present. Does not shotgun.",
+      "files": [
+        "evals/morpheus/files/hang/fetch.go",
+        "evals/morpheus/files/hang/SYMPTOMS.md"
+      ],
+      "expectations": [
+        "Verdict states the partner-is-slow theory does not hold or that the proposed fix treats a symptom",
+        "Identifies the unclosed response body on the non-200 path (return before defer) as the top cause, citing fetch.go with a line number",
+        "Connects the leak to MaxConnsPerHost=10 pool exhaustion causing requests to block until deadline",
+        "Explains that restart-fixes-it and partner p99 under 200ms are consistent with a leak and inconsistent with a slow partner",
+        "Lists at least 2 competing hypotheses, each with a discriminating test",
+        "Labels the bump-and-retry plan as symptom treatment",
+        "Fix closes the body on every path and proof is a test (e.g. httptest 404 server) that fails before and passes after",
+        "Names something to watch in prod after the fix (metric or log line)",
+        "Uses provenance labels (read / ran / saw / cited / inferred / guess) on claims",
+        "Does not shotgun multiple unrelated changes"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Research this for me: we still have a couple of Go services on aws-sdk-go (v1) for S3. Is it worth migrating to aws-sdk-go-v2 now, and what's the credential refresh story with IRSA on EKS? Most of the Stack Overflow answers I find are v1 and I'm not sure they still apply.",
+      "expected_output": "Restates as a decision question. States that aws-sdk-go v1 entered maintenance mode (31 July 2024) and reached end-of-support (31 July 2025), citing AWS primary sources with dates and URLs. Recommends migrating, with the reason tied to end-of-support and what flips it. Explains v2 credential chain with IRSA (web identity token file + role ARN env vars picked up by the default config, automatic refresh) citing AWS docs, and flags that v1-era SO answers predate this. Believability-ranks sources (AWS docs > blogs > SO). Separates consensus from contested. Checks what the current repo already does (this repo uses aws-sdk-go-v2 for S3) under 'Applies here'. Ends with recommendation and flips-if. Not a survey; under ~40 lines.",
+      "files": [],
+      "expectations": [
+        "States aws-sdk-go v1 end-of-support date of July 31, 2025 (and/or maintenance mode July 31, 2024) citing an AWS URL",
+        "Facts carry dates",
+        "Recommends migrating to v2 with an explicit reason and an explicit 'flips if' condition",
+        "Explains v2 IRSA credential resolution (web identity token file + role ARN env vars picked up by default config, automatic refresh) citing an AWS doc URL",
+        "Explicitly ranks source believability or states that v1-era Stack Overflow answers are stale",
+        "Checks the current repo and notes it already uses aws-sdk-go-v2 (go.mod)",
+        "Separates consensus from contested points",
+        "Evidence list has at most 5 entries and the response is 600 words or fewer"
+      ]
+    }
+  ]
+}

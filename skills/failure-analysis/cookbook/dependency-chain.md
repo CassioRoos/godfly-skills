@@ -32,7 +32,7 @@ For each link in the chain:
 ### The Slowness Question
 "What happens if this component takes 10x longer than usual?"
 - Does the caller have a timeout?
-- Is the timeout shorter than the downstream timeout? (It should be)
+- Does downstream work fit within the caller's remaining deadline, with cancellation propagated and time reserved for cleanup/retries?
 - What happens when the timeout fires?
 
 ### The Duplication Question
@@ -66,7 +66,7 @@ API Gateway (timeout: 30s)
 
 **Problem:** If the database is slow, all services block for 30s. Gateway timeout fires, but Service A, B, and DB connections remain open. Connection pools exhaust.
 
-**Fix:** Timeouts must decrease down the chain. Gateway: 10s, Service A: 5s, Service B: 2s.
+**Candidate control:** Allocate a decreasing remaining deadline through the chain and propagate cancellation. Example budgets (10s / 5s / 2s) are illustrative, not universal settings. Prove work and resource use stop when the caller gives up; a timeout number alone does not establish that.
 
 ### Pattern: Retry Amplification
 
@@ -78,7 +78,7 @@ Client retries 3x
 
 **Problem:** One failure at the service level becomes 3 x 3 x 3 = 27 requests. At scale, this turns a blip into an outage.
 
-**Fix:** Retry at only one level (usually the outermost). Inner layers should fail fast.
+**Candidate control:** Coordinate retries with a shared attempt/deadline budget, bounded backoff and jitter. Prefer one retry owner where feasible; prove multiple retrying layers do not multiply work beyond the budget.
 
 ### Pattern: Shared Resource Contention
 

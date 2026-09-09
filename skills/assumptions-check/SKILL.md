@@ -1,14 +1,11 @@
 ---
 name: assumptions-check
 description: >
-  Surface and test hidden assumptions in plans, code, architecture, and strategy.
-  Based on the CIA's Key Assumptions Check technique. Use when reviewing decisions,
-  designs, or proposals to find what's being taken for granted. Triggers on "what am
-  I missing", "assumption check", "what are we assuming", or when evaluating any
-  non-trivial decision. For general adversarial review use godfly.
+  Build and test an explicit inventory of hidden assumptions using the Key Assumptions
+  Check technique. Use for assumption check or what are we assuming. For general
+  engineering review or what am I missing, use morpheus.
 metadata:
   version: "1.0"
-allowed-tools: Read, Grep, Glob
 ---
 
 # Key Assumptions Check
@@ -20,6 +17,10 @@ Surface what's being taken for granted. Test it. Break what's fragile before it 
 Every plan, design, and decision rests on assumptions -- most of them invisible. This skill makes them visible, rates their strength, and identifies which ones need evidence or testing before you proceed.
 
 ## When to Use
+
+Use when an assumptions inventory is the requested deliverable, or a specific
+unverified assumption warrants this technique. Do not run a separate inventory
+for every non-trivial decision. Examples within that scope:
 
 - Before committing to an architecture or technology bet
 - When a plan feels "obviously right" (that's when assumptions hide best)
@@ -101,7 +102,3 @@ For each Uncertain, Untested, or Fragile assumption:
 ## Detailed Technique
 
 Read [cookbook/assumptions-matrix.md](./cookbook/assumptions-matrix.md)
-
----
-
-Evidence standards: follow the [evidence-grounding](../evidence-grounding/SKILL.md) skill — the canonical source for evidence tiers, quality gates, and the counter-evidence obligation.
