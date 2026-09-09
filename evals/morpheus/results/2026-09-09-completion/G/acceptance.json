@@ -1,0 +1,73 @@
+{
+  "case": "latest_events",
+  "resolved": false,
+  "workspace": "WORKSPACE",
+  "passed": true,
+  "checks": [
+    {
+      "name": "preserve:PROMPT.md",
+      "passed": true
+    },
+    {
+      "name": "preserve:README.md",
+      "passed": true
+    },
+    {
+      "name": "visible_baseline",
+      "passed": true
+    },
+    {
+      "name": "original_baseline_against_actor_code",
+      "passed": true
+    },
+    {
+      "name": "module_import",
+      "passed": true
+    },
+    {
+      "name": "empty",
+      "passed": true
+    },
+    {
+      "name": "latest_and_first_appearance_order",
+      "passed": true
+    },
+    {
+      "name": "generator",
+      "passed": true
+    },
+    {
+      "name": "negative_revision_and_last_tie",
+      "passed": true
+    },
+    {
+      "name": "input_nonmutation",
+      "passed": true
+    },
+    {
+      "name": "81_independent_finite_examples",
+      "passed": true
+    },
+    {
+      "name": "existing_helper_generator",
+      "passed": true
+    }
+  ],
+  "baseline": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "test_empty (test_existing.ExistingHelperTests.test_empty) ... ok\ntest_first_appearance_order (test_existing.ExistingHelperTests.test_first_appearance_order) ... ok\ntest_generator (test_existing.ExistingHelperTests.test_generator) ... ok\ntest_empty_iterables (test_latest_events.LatestEventsTests.test_empty_iterables) ... ok\ntest_winners_keep_first_key_order_and_complete_records (test_latest_events.LatestEventsTests.test_winners_keep_first_key_order_and_complete_records) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.000s\n\nOK\n"
+  },
+  "original_baseline": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "test_empty (test_existing.ExistingHelperTests.test_empty) ... ok\ntest_first_appearance_order (test_existing.ExistingHelperTests.test_first_appearance_order) ... ok\ntest_generator (test_existing.ExistingHelperTests.test_generator) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.000s\n\nOK\n"
+  },
+  "test_file_changes": [
+    {
+      "path": "tests/test_latest_events.py",
+      "change": "added"
+    }
+  ],
+  "module_output": ""
+}

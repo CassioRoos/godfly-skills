@@ -72,9 +72,8 @@ Ratings: `++` strongly supports, `+` supports, `o` neutral, `-` contradicts, `--
 ## Competing Hypotheses Analysis
 
 ### Approaches Considered
-1. [Approach]: [1-line description] -- used by [real example]
-2. [Approach]: [1-line description] -- used by [real example]
-3. [Approach]: [1-line description] -- used by [real example]
+- [Credible approach]: [description] -- [supporting evidence or explicitly unproven]
+- [Another credible approach, if applicable]: [description] -- [evidence or unproven]
 
 ### Diagnostic Matrix
 [The evidence table]

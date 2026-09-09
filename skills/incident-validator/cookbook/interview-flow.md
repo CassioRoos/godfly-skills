@@ -75,8 +75,8 @@ When the author supplies answers or new evidence:
   COMPLETE matrix -- every gate, including the long-settled ones -- plus a "Changed
   since last run" section holding only the flipped rows. Never shrink a matrix you
   already showed; a reader must never have to diff two messages to see the state.
-  This governs matrices that exist; it never orders one into existence. Passenger
-  and no-author runs re-emit their terminal line and changed gates, not a matrix.
+  This governs matrices that exist; it never orders one into existence. No-author
+  runs re-emit their terminal line and changed gates, not a matrix.
 - Keep the "If <decision target> were requested today" line current on every
   iteration, in the one terminal grammar: `BLOCKED: <gates>` or the target's verdict.
 - When the author disputes a gate, the standard text decides -- quote it. If the
@@ -93,7 +93,7 @@ reader. What replaces the interview is the ordered work list, not a bigger table
 The deliverable is: the terminal line, the failed and unknown gates that produced
 it in the consequence order below, and the work list. Passing gates are computed
 and summarised in one line ("11 gates PASS"), not enumerated. Emit the full matrix
-only when the reader asked the gate question or asks for it -- offer it in one
+only when the reader explicitly asks for the full matrix -- offer it in one
 line: "Full gate matrix on request."
 
 A reader who cannot answer questions has even less use for thirty rows than the

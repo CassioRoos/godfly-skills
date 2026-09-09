@@ -1,0 +1,49 @@
+--- before/events.py
++++ after/events.py
+@@ -11 +11,6 @@
+-    raise NotImplementedError("latest_events has not been implemented")
++    latest = {}
++    for event in events:
++        key = event["key"]
++        if key not in latest or event["revision"] >= latest[key]["revision"]:
++            latest[key] = event
++    return list(latest.values())
+--- before/tests/test_latest_events.py
++++ after/tests/test_latest_events.py
+@@ -0,0 +1,36 @@
++import copy
++import unittest
++
++from events import latest_events
++
++
++class LatestEventsTests(unittest.TestCase):
++    def test_empty_iterables(self):
++        self.assertEqual(latest_events([]), [])
++        self.assertEqual(latest_events(iter(())), [])
++
++    def test_winners_keep_first_key_order_and_complete_records(self):
++        events = [
++            {"key": "b", "revision": -3, "obsolete": True},
++            {"key": "a", "revision": 4, "payload": {"items": [1]}},
++            {"key": "b", "revision": -1, "payload": "earlier tie"},
++            {"key": "c", "revision": 0, "extra": [2, 3]},
++            {"key": "b", "revision": -1, "payload": "last tie"},
++            {"key": "a", "revision": 2, "payload": "older"},
++            {"key": "b", "revision": -2, "payload": "older last"},
++        ]
++        original = copy.deepcopy(events)
++        expected = [
++            {"key": "b", "revision": -1, "payload": "last tie"},
++            {"key": "a", "revision": 4, "payload": {"items": [1]}},
++            {"key": "c", "revision": 0, "extra": [2, 3]},
++        ]
++
++        self.assertEqual(latest_events(events), expected)
++        self.assertEqual(events, original)
++        self.assertEqual(latest_events(event for event in events), expected)
++        self.assertEqual(events, original)
++
++
++if __name__ == "__main__":
++    unittest.main()

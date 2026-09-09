@@ -103,14 +103,17 @@ quota or automatically chain other skills.
 For active failures, its [troubleshooting reference](skills/morpheus/references/troubleshooting.md)
 covers containment, reproduction, discriminating tests, and evidence-backed fixes.
 Its [research reference](skills/morpheus/references/research.md) preserves the requested
-question and recommends an option when a choice was requested.
+question and recommends an option when a choice was requested. When you authorize
+a build or fix, Morpheus continues through implementation and verification. An
+options memo is not a completed change.
 
 Deployment watching runs only when requested: pin the deployed version, baseline,
 success signal, and end time; compare read-only signals on cadence; corroborate
 delivery with durable outcomes; report anomalies and coverage gaps. Use the project's
 runbook for operational procedures. Incident-validator separately assesses incident
-artifacts against its resolved production-issue standard; it includes a dated
-fallback snapshot when the live standard cannot be reached.
+artifacts against its resolved production-issue standard; ordinary diagnosis does
+not trigger that procedure. It includes a dated fallback snapshot when the live
+standard cannot be reached.
 
 ## Working principles
 
@@ -192,9 +195,16 @@ fixtures, judge rubrics, and historical example runs live in [evals/](evals/READ
 outside the installable skill directories. Keep judge answer keys out of the arm
 being evaluated. Paths in `evals/morpheus/evals.json` are relative to this repository
 root. Existing published runs describe the versions exercised at the time; they
-do not validate later instruction changes. Morpheus's clarification and investigation
-revision has structural validation but no behavioral A/B result yet. Smaller
-instructions alone do not establish better task completion.
+do not validate later instruction changes.
+
+The [completion diagnostic](evals/morpheus/results/2026-09-09-completion/README.md)
+compared no skill, current-main Morpheus, and the completion revision on three
+synthetic tasks. All nine runs passed, including the control; the revision used
+more input tokens without demonstrating better correctness. This is a small
+diagnostic, not evidence of superiority. [Re-runnable fixtures and independent
+checks](evals/morpheus/controlled/README.md) cover implementation, approval of correct
+work, and a justified missing-policy blocker. Smaller instructions alone do not
+establish better task completion.
 
 ## License
 

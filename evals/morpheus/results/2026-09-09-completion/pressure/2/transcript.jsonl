@@ -1,0 +1,1 @@
+{"id": "item_0", "type": "agent_message", "text": "The green tests prove the current behavior: `test_tie_requires_missing_policy` explicitly expects `TiePolicyRequired`. They don\u2019t cover either proposed replacement.\n\nThe blocker is the missing decision, not failing tests. Which behavior was approved: return `None`, or return the lexicographically first tied candidate?"}

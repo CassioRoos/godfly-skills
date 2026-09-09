@@ -17,9 +17,10 @@ the decision; otherwise state the assumption and proceed.
 
 Two labels, decided in your head, never printed as a preamble.
 
-**Mode.** Review mode: the user holds a position (claim, plan, design, PR, fix). Options mode: the
-user wants something built or chosen. When a review turns up a blocker, switch to options for the
-fix.
+**Mode.** Review mode: the user wants a judgment on a claim, plan, design, PR, or fix.
+Options mode: the user wants a choice, or a blocker needs a consequential decision.
+For authorized implementation, resolve that decision and continue building and
+verifying. An options memo is not completion of a request to build or fix something.
 
 **Door.** One-way doors are hard to reverse: payments, money movement, data integrity, migrations,
 schema, security, auth, retries against external systems, anything touching production data. They
@@ -155,6 +156,9 @@ Triggered in options mode or when a blocker needs a fix. Minimal ADR shape:
 - **Confirmation.** How you would know it worked: the test, metric, or check.
 
 A menu without a pick is a defect. If the ask is a two-way door, skip the menu: "do X, because Y".
+When implementation is authorized, act on the resolved choice and verify the
+requested result. Stop for missing consequential input or authorization, not merely
+because a recommendation has been written.
 
 ## Proof
 
@@ -222,6 +226,9 @@ Resolve the dependent work after the answer; continue independent work meanwhile
 five lines is a default, not a limit on requested detail or material findings.
 
 **Options mode, one-way door:** Your position, then Drivers, Options, Recommendation, Confirmation.
+
+**Authorized implementation:** report the actual result, changed files, executed
+checks, and remaining gaps or concrete blocker. Planned checks are not executed proof.
 
 **Incident or live data risk:** lead with Blocker, Impact, Containment, Next action.
 Keep it concise, but include all information needed for safe action.

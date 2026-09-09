@@ -1,0 +1,80 @@
+{
+  "base_sha": "88ad2b12cdae7d7c2732ade619786bc125678bca",
+  "current_hub_sha256": "f8707221583d417cf58d6a19df4edaefc121db72478201ad418b4d3c478dcef2",
+  "revised_hub_sha256": "e26876b74ce7cb8e1c795dda60eb1546fc5dbffe72fb7562480d8faa5f2a8e61",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "high",
+  "codex_cli": "0.153.4",
+  "arms": {
+    "A": {
+      "case": "latest_events",
+      "arm": "control"
+    },
+    "G": {
+      "case": "latest_events",
+      "arm": "current"
+    },
+    "B": {
+      "case": "latest_events",
+      "arm": "revised"
+    },
+    "D": {
+      "case": "first_available",
+      "arm": "control"
+    },
+    "F": {
+      "case": "first_available",
+      "arm": "current"
+    },
+    "C": {
+      "case": "first_available",
+      "arm": "revised"
+    },
+    "I": {
+      "case": "ballot_winner",
+      "arm": "control"
+    },
+    "E": {
+      "case": "ballot_winner",
+      "arm": "current"
+    },
+    "H": {
+      "case": "ballot_winner",
+      "arm": "revised"
+    }
+  },
+  "aggregate_counters": {
+    "control": {
+      "input": 172700,
+      "cached": 140672,
+      "output": 2040,
+      "tools": 13
+    },
+    "current": {
+      "input": 219204,
+      "cached": 182656,
+      "output": 2267,
+      "tools": 14
+    },
+    "revised": {
+      "input": 226334,
+      "cached": 178688,
+      "output": 2436,
+      "tools": 16
+    }
+  },
+  "workflow_files_sha256": {
+    "current": {
+      "SKILL.md": "f8707221583d417cf58d6a19df4edaefc121db72478201ad418b4d3c478dcef2",
+      "references/research.md": "2b764dd7d6b59a866a8a995be04466e5dae929310a9b6650ebbe6cb839989ef0",
+      "references/sources.md": "ee6c38dfddfbe825bd561694ab853964837342a3e7ac8e7d92a8ffc3f0903604",
+      "references/troubleshooting.md": "7017f94c1a31577864af1e3167efd3a2e13bf952c9bc5f47404424561f3f368c"
+    },
+    "revised": {
+      "SKILL.md": "e26876b74ce7cb8e1c795dda60eb1546fc5dbffe72fb7562480d8faa5f2a8e61",
+      "references/research.md": "2b764dd7d6b59a866a8a995be04466e5dae929310a9b6650ebbe6cb839989ef0",
+      "references/sources.md": "ee6c38dfddfbe825bd561694ab853964837342a3e7ac8e7d92a8ffc3f0903604",
+      "references/troubleshooting.md": "17f78d4789d96f9ac8372165f4db84ebe1097dab08bc69f083a8a18285dfd238"
+    }
+  }
+}

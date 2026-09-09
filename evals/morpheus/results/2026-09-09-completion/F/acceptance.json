@@ -1,0 +1,48 @@
+{
+  "case": "first_available",
+  "resolved": false,
+  "workspace": "WORKSPACE",
+  "passed": true,
+  "checks": [
+    {
+      "name": "preserve:PROMPT.md",
+      "passed": true
+    },
+    {
+      "name": "preserve:README.md",
+      "passed": true
+    },
+    {
+      "name": "preserve:search.py",
+      "passed": true
+    },
+    {
+      "name": "visible_baseline",
+      "passed": true
+    },
+    {
+      "name": "original_baseline_against_actor_code",
+      "passed": true
+    },
+    {
+      "name": "module_import",
+      "passed": true
+    },
+    {
+      "name": "882_independent_search_examples",
+      "passed": true
+    }
+  ],
+  "baseline": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "test_above_maximum (test_search.SearchTests.test_above_maximum) ... ok\ntest_between_values (test_search.SearchTests.test_between_values) ... ok\ntest_duplicates (test_search.SearchTests.test_duplicates) ... ok\ntest_empty (test_search.SearchTests.test_empty) ... ok\ntest_first_index_is_valid (test_search.SearchTests.test_first_index_is_valid) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.000s\n\nOK\n"
+  },
+  "original_baseline": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "test_above_maximum (test_search.SearchTests.test_above_maximum) ... ok\ntest_between_values (test_search.SearchTests.test_between_values) ... ok\ntest_duplicates (test_search.SearchTests.test_duplicates) ... ok\ntest_empty (test_search.SearchTests.test_empty) ... ok\ntest_first_index_is_valid (test_search.SearchTests.test_first_index_is_valid) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.000s\n\nOK\n"
+  },
+  "test_file_changes": [],
+  "module_output": ""
+}
