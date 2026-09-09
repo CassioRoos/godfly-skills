@@ -9,9 +9,9 @@ discipline below and the provenance labels in `SKILL.md` to judge the evidence.
 
 ## Discipline
 
-1. **State the question as a decision.** "Research gRPC graceful shutdown" becomes "what should our
-   Go gRPC servers do on SIGTERM in Kubernetes so in-flight requests finish and nothing new lands
-   on a dying pod?". A question with a decision in it has an answer; a topic has a reading list.
+1. **Preserve the requested result.** Answer a factual question directly. For a choice,
+   identify the constraints that distinguish the options. Do not turn an explanation
+   or source summary into an unsolicited decision exercise.
 2. **Primary sources first.** Vendor documentation, the standard, the source code, the changelog,
    the maintainers' issue tracker. Then conference talks and engineering blogs from people who run
    the thing. Then everything else. A highly upvoted answer is a claim about the past, not the
@@ -26,9 +26,9 @@ discipline below and the provenance labels in `SKILL.md` to judge the evidence.
    is worth more than one who picks a side quietly.
 6. **Check the codebase before recommending.** A pattern that is right in general can be wrong
    here because of a constraint the repo already carries. Read what exists.
-7. **Land on a recommendation and name what flips it.** The research exists to unblock a decision.
-   "Use X because Y; I would change my mind if Z" is the deliverable. A balanced overview with no
-   pick is a defect.
+7. **Resolve the question.** When a choice was requested, recommend an option and name
+   what would change it. Otherwise deliver the requested explanation or synthesis;
+   omit decision-only sections below.
 8. **Flag staleness in the popular answer when you find it.** The user probably read it already.
    Saying "the top Stack Overflow answer is from 2019 and predates the v2 SDK" saves them from
    arguing with you on a premise you both know is dead.
@@ -36,7 +36,7 @@ discipline below and the provenance labels in `SKILL.md` to judge the evidence.
 ## Output shape
 
 ```
-Question: <the decision-shaped question you actually answered>
+Question: <the user's question>
 Answer: <one or two sentences, with calibration>
 Evidence:
   - <fact> (<source type>, <date>) <URL>

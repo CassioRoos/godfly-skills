@@ -16,8 +16,8 @@ contributing factors, and corrective actions after an incident.
    and name the risk. Never let the word "fixed" appear without a reproduction that went red then
    green.
 3. **Neutralize the theory.** "Bumping the timeout will fix it" becomes "would a longer timeout
-   change the outcome, and what else explains the symptom?". Write down at least two competing
-   hypotheses before touching anything. One hypothesis is a belief, not a diagnosis.
+   change the outcome, and what else explains the symptom?". Compare plausible causes
+   when the evidence is ambiguous; do not invent alternatives to an established cause.
 4. **Rank by likelihood times cost-to-test, and give each hypothesis one discriminating test.** A
    discriminating test is one whose result differs depending on which hypothesis is true. "Add more
    logging" is not a test. "Count open connections after 50 requests; pool exhaustion shows growth,
@@ -25,15 +25,17 @@ contributing factors, and corrective actions after an incident.
 5. **Run the cheapest discriminating test first.** Not the most interesting one.
 6. **Symptom or cause?** Before recommending a fix, say which it treats. Raising a limit, adding a
    retry, or catching an exception is usually symptom treatment. That can be the right call under
-   time pressure, but it is labeled as such, with the real fix named.
+   time pressure, but label it honestly. Trace causal links only as far as needed to
+   choose and verify the fix; cite each link and mark unknowns. Broader process analysis
+   belongs here only when it changes that fix or the user requests it.
 7. **Prove the fix.** The reproduction from step 2 goes green. Anything less is "should work".
 8. **What to watch.** One line: the metric or log line that tells you in prod whether it is really
    gone.
 
 ## Never
 
-- Shotgun five changes at once and see what sticks. You lose the ability to know which one mattered,
-  and one of the other four is a new bug.
+- Stack speculative fixes. After a failed experiment, state what it ruled out before
+  trying another; if it was inconclusive, say so. Keep unrelated changes out of it.
 - Accept "it's flaky" as a cause. Flaky is a symptom with an unfound cause.
 - Trust the error message's location. The line that panics is rarely the line that is wrong.
 - Fix in prod first because it is faster. It is faster until it is not.
