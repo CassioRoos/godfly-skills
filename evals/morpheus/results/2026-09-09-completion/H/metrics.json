@@ -1,0 +1,20 @@
+{
+  "label": "H",
+  "case": "ballot_winner",
+  "exit": 0,
+  "wall_seconds": 26.31,
+  "usage": [
+    {
+      "input_tokens": 66395,
+      "cached_input_tokens": 41856,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 493,
+      "reasoning_output_tokens": 47
+    }
+  ],
+  "tool_calls": 4,
+  "acceptance_exit": 0,
+  "model": "gpt-6-astra",
+  "effort": "high",
+  "file_change_calls": 0
+}

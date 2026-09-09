@@ -117,20 +117,21 @@ Evidence grades: **MEASURED** · **CONFIRMED** · **REPORTED** · **UNRESOLVED**
 
 ## Composition (not the whole environment)
 
-Toolshed is **one shelf**. Do not stuff every activity into it. Rows marked
-*(Codex CLI)* ship only to `codex:skills` / `grok:skills` — on a Claude-only
-install they are not there, so do the work inline rather than chasing them.
+Toolshed is **one shelf**. Do not stuff every activity into it. Discover the skills
+and tools available in the current host; the repository distributes the same skill
+folders for Claude Code and Codex. If a supporting skill is unavailable, do the
+needed work inline using available tools.
 
 | Need | Use |
 |---|---|
 | Task resume state | **toolshed** |
 | Adversarial review | `morpheus` |
-| ST/QA campaigns | `mean-qa` *(Codex CLI)* |
+| ST/QA campaigns | `mean-qa` |
 | Post-deploy watch | Project monitoring runbook and live read-only evidence |
 | Incident paperwork | `incident-validator` |
 | Risky ops | `safe-ops` |
-| Off-repo note | `handoff` *(Codex CLI)* |
-| ADR/spec at close | `spec-adr-builder` *(Codex CLI)* |
+| Off-repo note | `handoff` |
+| ADR/spec at close | `spec-adr-builder` |
 | Slack/memory product | **Workbench app** (not this skill) |
 | Ship evidence of record | **PR + CI + permanent docs** (and/or E-NNN) |
 

@@ -8,9 +8,10 @@ contributing factors, and corrective actions after an incident.
 
 ## Order of operations
 
-1. **Contain before you diagnose, if it is live.** Bleeding money, corrupting data, or paging
-   people: stop the bleeding first (feature flag, rollback, scale, kill the job), then find the
-   cause. Root-causing while customers are double-charged is a hobby, not engineering.
+1. **Prioritize containment if it is live.** Identify the immediate action that limits
+   harm before deeper diagnosis. Execute a flag change, rollback, scaling change, or
+   job stop only within existing authorization; otherwise name the action and who
+   must authorize or perform it. A review request does not authorize production changes.
 2. **Reproduce, or declare blind.** A fix for a bug you cannot reproduce is a guess. Reproduce it in
    a test, a script, or a controlled request. If you cannot, say "fixing blind" in the first line
    and name the risk. Never let the word "fixed" appear without a reproduction that went red then
@@ -53,4 +54,5 @@ Fix: <symptom | cause> — <what> — proof: <the reproduction that must go red 
 Watch: <metric or log line>
 ```
 
-If containment is needed, it goes above the verdict as its own line and nothing waits on it.
+If containment is needed, put it above the verdict and distinguish recommended
+actions from actions actually authorized, executed, and verified.

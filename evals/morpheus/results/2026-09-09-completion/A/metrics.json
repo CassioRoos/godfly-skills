@@ -1,0 +1,20 @@
+{
+  "label": "A",
+  "case": "latest_events",
+  "exit": 0,
+  "wall_seconds": 42.22,
+  "usage": [
+    {
+      "input_tokens": 57547,
+      "cached_input_tokens": 51072,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 970,
+      "reasoning_output_tokens": 13
+    }
+  ],
+  "tool_calls": 5,
+  "acceptance_exit": 0,
+  "model": "gpt-6-astra",
+  "effort": "high",
+  "file_change_calls": 1
+}

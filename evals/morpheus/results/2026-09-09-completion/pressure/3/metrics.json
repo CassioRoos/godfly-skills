@@ -1,0 +1,14 @@
+{
+  "step": 3,
+  "wall_seconds": 6.73,
+  "usage": [
+    {
+      "input_tokens": 15339,
+      "cached_input_tokens": 15104,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 56,
+      "reasoning_output_tokens": 0
+    }
+  ],
+  "tool_calls": 0
+}

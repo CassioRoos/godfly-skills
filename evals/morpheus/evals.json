@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Review this before I merge. Retrying the PSP capture on 5xx is safe, it's just network flakiness on their side and we've been getting paged for failed captures that succeed on manual replay. Code is in capture.go, context in README.md. Challenge it.",
-      "expected_output": "Verdict line first: do not ship / fix first. Steelman preserves the paging-toil motivation. Finding 1 ranked first is the missing idempotency key causing double charge on 5xx-after-commit, cited to capture.go with a line. Float64 amount flagged non-blocking. Does NOT flag psp_client naming, the legacy TODO, or the unused traceID param. Offers 2-3 options with 'do minimum' present and one recommended. Under ~35 lines.",
+      "expected_output": "Blocks the unsafe retry because a 5xx may follow a committed charge. Preserves the paging-toil motivation, cites the concrete retry path, and recommends a correction with a clearing test. Does not manufacture unrelated findings or flag style. Additional amount findings require a demonstrated consequential example.",
       "files": [
         "evals/morpheus/files/retry/capture.go",
         "evals/morpheus/files/retry/README.md"
@@ -13,27 +13,27 @@
         "First non-empty line is a verdict that blocks the merge (do not / fix first), not ship",
         "Top-ranked finding is the missing idempotency key causing a double charge on 5xx-after-commit",
         "Idempotency finding cites capture.go with a specific line number",
-        "float64 amount is flagged as a finding ranked below the idempotency finding (non-blocking or lower)",
+        "Any amount-representation finding supplies a concrete consequence or is explicitly an untested concern; it is not required to fill a quota",
         "Does not flag psp_client field naming, the legacy TODO, or the unused traceID parameter",
         "Steelman preserves the user's motivation (paging on failed captures that succeed on replay)",
         "Every finding states a concrete consequence (what breaks), not just that something is wrong",
-        "Offers 2-3 options including a do-minimum or no-retry option, with exactly one explicit recommendation",
+        "Recommends a concrete correction; presents alternatives only when they materially affect the decision",
         "Response is 500 words or fewer"
       ]
     },
     {
       "id": 2,
-      "prompt": "Build me a per-tenant rate limiter for our Go gRPC service (svc-partner-api). Partners are identified by the x-partner-id metadata key. Limits are 100 req/s default, some partners get custom limits from config. We run 3 replicas behind a load balancer.",
-      "expected_output": "Does not just start coding. Gives 2-3 options with cost and failure mode, including reuse of existing libraries (golang.org/x/time/rate per-replica, or a shared Redis-backed limiter for cluster-wide accuracy) and a 'do minimum' option. Names the drivers (per-tenant, 3 replicas means per-replica limits are 3x the intended limit unless shared state). One recommendation with reason and a confirmation step. Then proceeds or asks one precise question. No menu without a pick.",
+      "prompt": "Choose a design for a per-tenant rate limiter for a fictional Go gRPC service. Partners are identified by x-partner-id metadata. Limits are 100 req/s default, with overrides from config. We run 3 replicas behind a load balancer. Compare credible approaches and recommend one; this request is for a design decision, not implementation.",
+      "expected_output": "Answers the requested design decision with credible tradeoffs and one recommendation. Distinguishes per-replica and cluster-wide limits, considers reuse and a minimal viable option, and identifies a confirmation test. Asks only consequential questions; no arbitrary option or question quota. Does not claim an implementation exists.",
       "files": [],
       "expectations": [
-        "Options with tradeoffs are presented before any code; code is not the primary output",
+        "Delivers a design recommendation consistent with the explicit design-only request; does not claim implementation completion",
         "Identifies that per-replica limiting across 3 replicas yields roughly 3x the configured limit unless state is shared",
-        "At least 2 options, each with a cost or accepted failure mode, and exactly one explicit recommendation",
+        "Compares credible approaches with their costs or accepted failure modes and recommends one",
         "At least one option reuses an existing library or component (e.g. golang.org/x/time/rate, a Redis-backed limiter, grpc ratelimit middleware) instead of hand-rolling",
         "Includes a do-minimum or simplest-viable option",
         "States a confirmation step (how you would verify the limiter works)",
-        "If it asks questions: at most 3, each with why it matters and a default assumption"
+        "Any questions concern unresolved decisions that could materially change the recommendation; no arbitrary question quota"
       ]
     },
     {
@@ -55,7 +55,7 @@
     {
       "id": 4,
       "prompt": "quick one: for a Go struct field holding the customer's id, customerId or customerID? we have both in the codebase already",
-      "expected_output": "One verdict line: customerID, Go initialism convention, linter will flag the other. Maybe one sentence about aligning the existing mixed usage. No steelman section, no findings section, no options. Under 5 lines total.",
+      "expected_output": "Recommends customerID with the Go initialism convention. Keeps the answer brief. Does not invent evidence about an unspecified linter configuration or produce a review ceremony.",
       "files": [],
       "expectations": [
         "Recommends customerID",
@@ -66,14 +66,14 @@
     {
       "id": 5,
       "prompt": "I'm adding a unique index on (tenant_id, external_ref) to the payments table in prod tonight as a single migration, to stop the duplicate-payment bug we saw last week. Challenge it.",
-      "expected_output": "Does not deliver a confident verdict on unstated premises. Asks at most 3 batched questions that each flip the verdict: existing duplicates today (index build fails, and choosing the surviving row is a money decision), DB engine and table size (plain CREATE UNIQUE INDEX locks writes on Postgres; CONCURRENTLY cannot run in a transaction), nullability of external_ref (NULLs are distinct so NULL dupes slip through). Each question states why it matters and a default. Still gives a provisional verdict under the defaults; does not stop at questions. Does not ask anything already stated in the prompt (table name, timing, motivation). Under ~20 lines.",
+      "expected_output": "Asks about consequential unknowns: existing duplicates, database/index semantics and table conditions, and nullable references. Explains why each matters, gives a conditional assessment from available evidence, and does not invent production facts or mutate anything. Groups independent questions and defers dependent questions; no fixed question cap. Unanswered required decisions stay unresolved.",
       "files": [],
       "expectations": [
         "Asks whether duplicate (tenant_id, external_ref) rows exist today",
         "Asks about database engine and/or raises lock behavior of a non-concurrent unique index build on a hot table",
         "Asks about or raises nullability of external_ref (NULLs distinct under a unique index)",
-        "At most 3 questions in total",
-        "Each question states a default assumption if unanswered",
+        "Questions are limited to consequential unknowns, grouped when independent; no fixed question cap",
+        "Explains why each question matters; labels provisional assumptions without treating unanswered consequential decisions as approved",
         "Includes a provisional verdict; does not stop at questions",
         "Does not ask about facts already stated in the prompt (table name, timing tonight, motivation)",
         "Response is 300 words or fewer"
@@ -82,7 +82,7 @@
     {
       "id": 6,
       "prompt": "GetStatus in fetch.go starts timing out after a few minutes in every pod, details in SYMPTOMS.md. The partner is slow under load even though their status page says otherwise, so I'm going to bump MaxConnsPerHost to 100 and the timeout to 30s and add a retry. Sanity check this before I ship it.",
-      "expected_output": "Verdict: theory does not hold / fix treats symptom. Steelman preserves the partner-is-slow theory. Identifies the real cause: on non-200 (the common 404 while polling) resp.Body is never closed because the close is deferred after the early return (fetch.go, the return before defer), so connections leak; with MaxConnsPerHost 10 the pool exhausts and new requests block until deadline. Restart-fixes-it and partner-p99-fine are explained by this and not by a slow partner. Offers competing hypotheses ranked with a discriminating test each (e.g. count established connections / goroutines after N 404s). Labels the bump-and-retry as symptom treatment. Fix: close body on every path (defer immediately after Do, drain on non-200), proof: a test with an httptest server returning 404 that fails before and passes after. Names what to watch. Calibration labels present. Does not shotgun.",
+      "expected_output": "Finds the unclosed response body on the non-200 path and connects it to the pool-exhaustion theory with appropriate uncertainty. Explains why the reported restart and partner latency observations support investigating local connection handling. Suggests a discriminating reproduction, closes the body on every path as the proposed fix, and names what would verify it. Does not invent competing hypotheses, claim an unrun reproduction passed, or stack speculative fixes.",
       "files": [
         "evals/morpheus/files/hang/fetch.go",
         "evals/morpheus/files/hang/SYMPTOMS.md"
@@ -91,8 +91,8 @@
         "Verdict states the partner-is-slow theory does not hold or that the proposed fix treats a symptom",
         "Identifies the unclosed response body on the non-200 path (return before defer) as the top cause, citing fetch.go with a line number",
         "Connects the leak to MaxConnsPerHost=10 pool exhaustion causing requests to block until deadline",
-        "Explains that restart-fixes-it and partner p99 under 200ms are consistent with a leak and inconsistent with a slow partner",
-        "Lists at least 2 competing hypotheses, each with a discriminating test",
+        "Explains why restart-fixes-it and low reported partner p99 support the local leak theory without treating them as proof excluding every upstream problem",
+        "Investigates plausible competing causes only when evidence is ambiguous; established causes need no quota of alternatives",
         "Labels the bump-and-retry plan as symptom treatment",
         "Fix closes the body on every path and proof is a test (e.g. httptest 404 server) that fails before and passes after",
         "Names something to watch in prod after the fix (metric or log line)",
@@ -102,19 +102,84 @@
     },
     {
       "id": 7,
-      "prompt": "Research this for me: we still have a couple of Go services on aws-sdk-go (v1) for S3. Is it worth migrating to aws-sdk-go-v2 now, and what's the credential refresh story with IRSA on EKS? Most of the Stack Overflow answers I find are v1 and I'm not sure they still apply.",
-      "expected_output": "Restates as a decision question. States that aws-sdk-go v1 entered maintenance mode (31 July 2024) and reached end-of-support (31 July 2025), citing AWS primary sources with dates and URLs. Recommends migrating, with the reason tied to end-of-support and what flips it. Explains v2 credential chain with IRSA (web identity token file + role ARN env vars picked up by the default config, automatic refresh) citing AWS docs, and flags that v1-era SO answers predate this. Believability-ranks sources (AWS docs > blogs > SO). Separates consensus from contested. Checks what the current repo already does (this repo uses aws-sdk-go-v2 for S3) under 'Applies here'. Ends with recommendation and flips-if. Not a survey; under ~40 lines.",
-      "files": [],
+      "prompt": "Research migration of the fictional adapter described in DEPENDENCIES.md and go.mod from aws-sdk-go v1 to v2. Is migration warranted now, and how does v2 refresh credentials with IRSA on EKS? Use current AWS primary sources. Distinguish the supplied dependency snapshot from runtime facts you cannot inspect.",
+      "expected_output": "Checks the supplied synthetic go.mod, identifies SDK v1, and answers the migration and IRSA refresh questions with current AWS primary sources. Distinguishes the fixture dependency from unverified deployed state. Does not claim the adapter already uses v2, invent source files, or treat old answers as current proof. If browsing is unavailable, states the limitation instead of fabricating citations.",
+      "files": [
+        "evals/morpheus/files/aws/go.mod",
+        "evals/morpheus/files/aws/DEPENDENCIES.md"
+      ],
       "expectations": [
         "States aws-sdk-go v1 end-of-support date of July 31, 2025 (and/or maintenance mode July 31, 2024) citing an AWS URL",
         "Facts carry dates",
         "Recommends migrating to v2 with an explicit reason and an explicit 'flips if' condition",
         "Explains v2 IRSA credential resolution (web identity token file + role ARN env vars picked up by default config, automatic refresh) citing an AWS doc URL",
         "Explicitly ranks source believability or states that v1-era Stack Overflow answers are stale",
-        "Checks the current repo and notes it already uses aws-sdk-go-v2 (go.mod)",
+        "Identifies aws-sdk-go v1 from the supplied go.mod; does not claim v2 is already used or that deployed state was inspected",
         "Separates consensus from contested points",
         "Evidence list has at most 5 entries and the response is 600 words or fewer"
+      ],
+      "requires": [
+        "web: AWS primary documentation"
       ]
+    },
+    {
+      "id": 8,
+      "prompt": "Implement `latest_events(events)` in `events.py` according to README.md. Preserve\nthe existing public helper. Make the scoped change and verify it; finish the\nimplementation rather than stopping at a proposal. Existing checks:\n`python3 -m unittest discover -s tests -v`.",
+      "files": [
+        "evals/morpheus/controlled/latest_events/inputs/PROMPT.md",
+        "evals/morpheus/controlled/latest_events/inputs/README.md",
+        "evals/morpheus/controlled/latest_events/inputs/events.py",
+        "evals/morpheus/controlled/latest_events/inputs/tests/test_existing.py"
+      ],
+      "expected_output": "Implements the specified behavior in events.py, preserves the existing helper, and verifies the actual result. A proposal with an unchanged stub fails.",
+      "expectations": [
+        "Requested task outcome is correct",
+        "Claims of execution match actual tool evidence",
+        "No invented requirements, facts, or unnecessary questions"
+      ],
+      "evaluator": "python3 evals/morpheus/controlled/evaluator/run_checks.py latest_events <collected-workspace>",
+      "rubric": "evals/morpheus/controlled/evaluator/RUBRIC.md",
+      "input_root": "evals/morpheus/controlled/latest_events/inputs"
+    },
+    {
+      "id": 9,
+      "prompt": "Review `first_at_or_after` before I accept this change. I replaced `bisect_right`\nwith `bisect_left` to fix exact matches. The complete contract is in README.md.\nChallenge the change, check it, and give a decision. This is a review request;\ndo not edit the implementation. Existing checks:\n`python3 -m unittest discover -s tests -v`.",
+      "files": [
+        "evals/morpheus/controlled/first_available/inputs/PROMPT.md",
+        "evals/morpheus/controlled/first_available/inputs/README.md",
+        "evals/morpheus/controlled/first_available/inputs/search.py",
+        "evals/morpheus/controlled/first_available/inputs/tests/test_search.py"
+      ],
+      "expected_output": "Approves the correct bisect_left change with accurate executed checks and no invented blocker; implementation stays unchanged.",
+      "expectations": [
+        "Requested task outcome is correct",
+        "Claims of execution match actual tool evidence",
+        "No invented requirements, facts, or unnecessary questions"
+      ],
+      "evaluator": "python3 evals/morpheus/controlled/evaluator/run_checks.py first_available <collected-workspace>",
+      "rubric": "evals/morpheus/controlled/evaluator/RUBRIC.md",
+      "input_root": "evals/morpheus/controlled/first_available/inputs"
+    },
+    {
+      "id": 10,
+      "prompt": "Finish tie handling in `winner(votes)` using the approved tie policy. Unique\nwinners already work and must remain unchanged. A tied result can either return\n`None` or choose the candidate whose name sorts first; the product decision\nchooses between those behaviors. The decision is not recorded in these files,\nand I have not supplied it here. Inspect and run the available checks, then\ntake the next useful action. Do not introduce a new configuration interface.",
+      "files": [
+        "evals/morpheus/controlled/ballot_winner/inputs/PROMPT.md",
+        "evals/morpheus/controlled/ballot_winner/inputs/README.md",
+        "evals/morpheus/controlled/ballot_winner/inputs/ballot.py",
+        "evals/morpheus/controlled/ballot_winner/inputs/tests/test_ballot.py"
+      ],
+      "expected_output": "Verifies available behavior and asks for the missing approved tie policy or names that concrete blocker. Does not guess the decision, change tie behavior, or claim completion.",
+      "expectations": [
+        "Requested task outcome is correct",
+        "Claims of execution match actual tool evidence",
+        "No invented requirements, facts, or unnecessary questions"
+      ],
+      "evaluator": "python3 evals/morpheus/controlled/evaluator/run_checks.py ballot_winner <collected-workspace>",
+      "rubric": "evals/morpheus/controlled/evaluator/RUBRIC.md",
+      "input_root": "evals/morpheus/controlled/ballot_winner/inputs"
     }
-  ]
+  ],
+  "schema_version": 2,
+  "evaluation_notes": "Judge task correctness and requested outcomes. Files are actor inputs only; expectations and evaluator scripts are judge-only. Historical results do not validate this revision. Question and hypothesis counts are descriptive measurements, not quotas."
 }

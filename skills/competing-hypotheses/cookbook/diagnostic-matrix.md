@@ -4,8 +4,10 @@
 
 ### Step 1: Define Approaches (Columns)
 
-List 3-5 genuinely different approaches. Each must pass these filters:
-- **Real:** Used in production by at least one known team/company
+Compare the genuinely credible approaches; two may be enough. Do not add options
+to fill a quota. Each must pass these filters:
+- **Grounded:** Cite relevant evidence when available; label an unproven approach
+  rather than inventing production precedent
 - **Viable:** Could actually work for this specific problem
 - **Distinct:** Represents a meaningfully different approach, not a minor variation
 

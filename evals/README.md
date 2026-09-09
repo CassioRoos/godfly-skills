@@ -17,3 +17,9 @@ installed into `~/.claude/skills/`, and eval material must not travel with it:
   from costing more than the whole skill.
 
 Eval material belongs here. Skills belong in `skills/`.
+
+Morpheus's [controlled completion fixtures](morpheus/controlled/README.md) include
+independent executable checks and a frozen blind rubric. The [2026-09-09
+comparison](morpheus/results/2026-09-09-completion/README.md) reports all nine
+outcomes, token/tool costs, and limits; every condition passed, so it does not
+establish skill superiority.

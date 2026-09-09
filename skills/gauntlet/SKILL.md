@@ -47,9 +47,10 @@ review and fatal in use.
    discard any arm that escaped. **Capabilities must also be matched across arms:**
    one arm with network, `gh`, or MCP access and another sandboxed are not the
    same experiment, and the fabrication axis becomes garbage.
-4. **Single runs give direction, not decimals.** Model output varies run to
-   run; treat a 0.5 gap as noise, a 3-point gap as signal. Rerun ALL arms
-   fresh when comparing versions — never compare a fresh run to a cached one.
+4. **Single runs give direction, not significance.** Judge material errors and
+   outcomes first; a score gap alone does not establish improvement. Repeat matched
+   runs to assess variation when making adoption claims. Rerun ALL arms fresh when
+   comparing versions — never compare a fresh run to a cached one.
 5. **Findings become proposals, not automatic rules.** Recommend the smallest
    supported correction; deletion, simplification or no change may be right.
    Evaluation does not authorize changing an installed skill or committing an

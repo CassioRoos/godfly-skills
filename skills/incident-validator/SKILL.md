@@ -8,6 +8,7 @@ description: >
   a production-fix PR description, or a postmortem, or when asking "can this
   incident be closed?". Triggers on "validate this incident", "validate handover",
   "validate postmortem", "incident PR review", "can I close this incident".
+  Ordinary diagnosis or code review does not trigger artifact validation.
   For adversarial review of the fix itself use morpheus; for causal analysis and
   writing the postmortem use premortem-postmortem. Verify releases using the
   project runbook and live read-only evidence.
@@ -32,6 +33,14 @@ a validator never issues a mutation, whatever the connection permits. A missing 
 downgrades evidence strength (see the ladder); it never blocks the run. Report each
 capability as `unavailable | available-but-failed | unauthorized | not-attempted` --
 "no tool" must never quietly become an invented result.
+
+## Scope before procedure
+
+Run this procedure when the user requests incident-artifact preparation or
+validation, or a merge, publication, or incident-closure assessment against the
+standard. If loaded during ordinary diagnosis, code review, or system explanation,
+return to that task without resolving a standard, grading gates, or inventing a
+compliance decision. A later request for artifact validation can activate it.
 
 ## The Source of Truth
 
@@ -120,7 +129,7 @@ engineering-lead-approved six-part E2E exception CAN make a PR `MERGEABLE`.
 `incident-close` stays `BLOCKED` until the E2E follow-up exists AND passes -- "the
 production issue cannot be closed until the E2E follow-up is completed."
 
-## Three Modes, One Invariant
+## Two Modes, One Invariant
 
 **Coach mode** (artifact in progress -- the default): full gate matrix, then grouped
 questions to close the red gates, then re-validate as the author supplies evidence.
@@ -135,17 +144,7 @@ negotiation in the output. Enter gate mode when the user explicitly asks "can I
 close/merge/publish this?" or says so. Entering gate mode never predetermines the
 verdict: BLOCKED is a valid, expected, unembarrassing gate-mode outcome.
 
-**Passenger mode** (no decision target was requested -- the user asked for an
-analysis, a root cause, or "what is going on here", and this skill loaded alongside
-others): no matrix. Emit the terminal line for the inferred target, the FAIL and
-UNKNOWN gates that produced it -- consequence order, five rows maximum, prose or a
-short list -- and the ordered work list. Passing gates are computed and summarised in
-one line, never enumerated. Close with "Full gate matrix on request." Someone who
-wanted a compliance audit would have asked the gate question; answering a diagnostic
-question with thirty rows of paperwork grading buries the diagnosis, which is the one
-thing they asked for.
-
-**The invariant, in all three modes: a failed gate is NEVER reported as a suggestion.**
+**The invariant, in both modes: a failed gate is NEVER reported as a suggestion.**
 Coach mode changes what happens after the matrix -- questions instead of a verdict --
 never the matrix itself. "Consider adding impact analysis" is banned vocabulary.
 The gate is `impact-analysis: FAIL` and the next step is the question that closes it.
@@ -203,15 +202,16 @@ never a reason to grow the table. Details in `cookbook/interview-flow.md`.
 5. VERIFY    -> Climb the evidence ladder wherever session tools allow: Linear for
                 tickets, gh for PR/deploy state, Datadog for the linked queries,
                 grep for recurrence/test claims, read-only Postgres for data claims.
-                Load the `datadog-mcp-gotchas` and `altpay-datadog-apm-spans` skills
-                before any Datadog work -- a query built without them returns
-                misleading emptiness.
+                Use current provider schemas and bounded probes. If separately
+                installed and relevant, consult `datadog-mcp-gotchas` for query
+                failures or `altpay-datadog-apm-spans` for AltPay span discovery.
+                Their absence does not block available evidence gathering.
                 Coach mode: climb opportunistically. Gate mode: MUST attempt
                 VERIFIED_LIVE for every gate closure-critical to this decision
                 target whose tool is available in-session -- an available tool left
                 unused is a validator failure, not a rung downgrade.
 6. VERDICT   -> Coach: matrix + grouped questions + the "if <target> were requested
-                today" line. Gate: the target's terminal verdict. Passenger or no
+                today" line. Gate: the target's terminal verdict. No
                 author: terminal line + the failing gates that drove it (<=5,
                 consequence order) + the ordered work list, no matrix. For
                 `incident-close` only, run cookbook/closure-gates.md on top of the
@@ -222,7 +222,7 @@ never a reason to grow the table. Details in `cookbook/interview-flow.md`.
                 matrix is being shown, re-emit it COMPLETE every time, plus a
                 "Changed since last run" section listing only the flipped rows:
                 settled gates are never dropped from a matrix, just not
-                re-litigated. Passenger and no-author runs iterate on the terminal
+                re-litigated. No-author runs iterate on the terminal
                 line and the changed gates -- iteration never grows a matrix into
                 a run that had none.
 ```
@@ -240,9 +240,9 @@ cookbook prose names the same values in lowercase, and they are the same values:
   `PUBLISHABLE`, `CLOSEABLE`, or `BLOCKED: <gate>, <gate>`. Not "blocked on", not
   "mostly closeable", no other spellings.
 
-In coach and gate mode, always the complete matrix -- every gate in the rubric, every
-run, including the ones that passed three iterations ago. In passenger and no-author
-runs, never -- see the mode above. Coach and gate mode use this shape:
+With an author present, coach and gate mode use the complete matrix -- every gate
+in the rubric, every run, including those that already passed. No-author runs use
+the compact shape below. Coach and gate mode use this shape:
 
 ```markdown
 <snapshot warning block FIRST, before the heading, when the snapshot was the source>
@@ -273,7 +273,7 @@ Triggers: <trigger>: true/false/unknown (one row each, with source)
 BLOCKED: <gates>   (or: MERGEABLE / PUBLISHABLE / CLOSEABLE)
 ```
 
-Passenger and no-author runs use this shape instead -- same vocabulary, same
+No-author runs use this shape instead -- same vocabulary, same
 terminal grammar, no matrix:
 
 ```markdown
@@ -299,10 +299,10 @@ having missed them.>
 Full gate matrix on request.
 ```
 
-**Register in passenger mode.** Gate slugs, mode names, and enum labels are this
-skill's internal vocabulary, not the reader's. In passenger mode the reader never
-sees `severity-classified`, `mitigation-vs-root-cause`, `trigger-sweep`, the words
-"passenger mode", or a rung name. They see "nobody has assigned this a severity",
+**Register without an author present.** Gate slugs, mode names, and enum labels are this
+skill's internal vocabulary, not the reader's. In a no-author run the reader never
+sees `severity-classified`, `mitigation-vs-root-cause`, `trigger-sweep`, internal
+mode names, or a rung name. They see "nobody has assigned this a severity",
 "it is not established whether this is fixed or merely patched", "the postmortem
 triggers were never checked". Keep the terminal line's enum -- BLOCKED / MERGEABLE /
 PUBLISHABLE / CLOSEABLE is a decision, not jargon -- and name the gates in plain

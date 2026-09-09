@@ -1,0 +1,1 @@
+{"id": "item_0", "type": "agent_message", "text": "I can\u2019t truthfully mark this complete. Ties still raise `TiePolicyRequired`, and the passing tests verify that exception. The approved replacement hasn\u2019t been supplied.\n\nPlease provide the approved choice: `None` or the lexicographically first tied candidate."}

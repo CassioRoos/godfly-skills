@@ -22,7 +22,7 @@ not pretend. Grade the description gates, mark every live-state and diff gate
 `UNKNOWN` with the reason `pr-body-only ingestion`, and say in one line that
 `MERGEABLE` is unavailable this run. A missing tool never blocks producing a
 VERDICT; it does block a positive one. What gets printed to carry that verdict --
-the full matrix, or the short passenger shape -- is SKILL.md's call by mode, never
+the full matrix, or the compact no-author shape -- is SKILL.md's call by mode, never
 this rubric's: a rubric decides what passes, not what is on the page.
 
 ## Gates -- Description

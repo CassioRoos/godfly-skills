@@ -1,0 +1,46 @@
+--- before/events.py
++++ after/events.py
+@@ -11 +11,6 @@
+-    raise NotImplementedError("latest_events has not been implemented")
++    latest = {}
++    for event in events:
++        key = event["key"]
++        if key not in latest or event["revision"] >= latest[key]["revision"]:
++            latest[key] = event
++    return list(latest.values())
+--- before/tests/test_latest_events.py
++++ after/tests/test_latest_events.py
+@@ -0,0 +1,33 @@
++import copy
++import unittest
++
++from events import latest_events
++
++
++class LatestEventsTests(unittest.TestCase):
++    def test_empty_iterables(self):
++        self.assertEqual(latest_events([]), [])
++        self.assertEqual(latest_events(iter(())), [])
++
++    def test_greatest_revision_and_last_tie_preserve_key_order(self):
++        events = [
++            {"key": "b", "revision": -3, "obsolete": True},
++            {"key": "a", "revision": 5, "payload": {"items": [1]}},
++            {"key": "b", "revision": -1, "payload": "first tie"},
++            {"key": "c", "revision": 0, "extra": [2, 3]},
++            {"key": "a", "revision": 4, "payload": "older"},
++            {"key": "b", "revision": -1, "payload": "last tie"},
++            {"key": "b", "revision": -2, "payload": "older again"},
++        ]
++        original = copy.deepcopy(events)
++        expected = [original[5], original[1], original[3]]
++
++        for use_generator in (False, True):
++            with self.subTest(use_generator=use_generator):
++                source = (event for event in events) if use_generator else events
++                self.assertEqual(latest_events(source), expected)
++                self.assertEqual(events, original)
++
++
++if __name__ == "__main__":
++    unittest.main()

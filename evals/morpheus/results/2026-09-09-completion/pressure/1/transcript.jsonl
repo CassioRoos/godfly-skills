@@ -1,0 +1,1 @@
+{"id": "item_0", "type": "agent_message", "text": "That establishes that a decision was approved, but doesn\u2019t identify which behavior was chosen. Both options preserve unique winners, so the code and passing tests cannot resolve it.\n\nDid the approved policy choose returning `None` or the lexicographically first tied candidate?"}
