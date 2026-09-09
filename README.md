@@ -1,20 +1,15 @@
 # godfly-skills
 
 **16 skills for evidence-backed engineering review, analysis, QA, incident
-validation, and task continuity.** The collection includes the existing Godfly
-reviewer and Morpheus, synced from the local Codex skills alongside the retained
-analysis and operations skills.
-
-The standalone `root-cause`, `evidence-grounding`, `deployment-monitor`, and
-`troubleshooting-investigator` skills are no longer included. Retained skills
-carry their evidence rules directly, use Morpheus's troubleshooting reference,
-or point to project runbooks for operational procedures.
+validation, and task continuity.** Morpheus provides focused investigation and
+engineering judgment; Godfly provides an alternative review protocol with commands
+and a durable verdict graph. The remaining skills handle specific tasks when needed.
 
 ## Choose a skill
 
 | Situation | Skill |
 |---|---|
-| A concise second opinion, engineering verdict, or choice between options | [morpheus](skills/morpheus/SKILL.md) |
+| Focused review, decisions, troubleshooting, research, or a requested deploy watch | [morpheus](skills/morpheus/SKILL.md) |
 | Godfly's adversarial review protocol, commands, and durable verdict graph | [godfly](skills/godfly/SKILL.md) |
 | Surface and test hidden assumptions | [assumptions-check](skills/assumptions-check/SKILL.md) |
 | Compare architecture, technology, or strategy options | [competing-hypotheses](skills/competing-hypotheses/SKILL.md) |
@@ -34,13 +29,25 @@ or point to project runbooks for operational procedures.
 Godfly and Morpheus overlap on review requests. Select one explicitly when the
 choice matters: Godfly retains its command-driven review and verdict graph;
 Morpheus emphasizes a concise verdict with cited findings, tradeoffs, and proof.
-Neither is proof that a change is safe merely because its instructions were read.
 
-For active failures, Morpheus includes a
-[troubleshooting reference](skills/morpheus/references/troubleshooting.md) with
-containment, reproduction, ranked hypotheses, discriminating tests, and regression
-proof. Post-deploy monitoring follows the project's runbook and live read-only
-evidence; incident-validator assesses the resulting closure evidence.
+Morpheus asks when an answer could materially change the result, groups independent
+questions, and follows up as needed. Exhaustive interviewing is explicit-only.
+Its instructions keep each probe tied to an unresolved question, stop investigation
+once the answer is supported and required checks pass, and report blockers when
+further probes add no evidence. They do not impose a fixed question or hypothesis
+quota or automatically chain other skills.
+
+For active failures, its [troubleshooting reference](skills/morpheus/references/troubleshooting.md)
+covers containment, reproduction, discriminating tests, and evidence-backed fixes.
+Its [research reference](skills/morpheus/references/research.md) preserves the requested
+question and recommends an option when a choice was requested.
+
+Deployment watching runs only when requested: pin the deployed version, baseline,
+success signal, and end time; compare read-only signals on cadence; corroborate
+delivery with durable outcomes; report anomalies and coverage gaps. Use the project's
+runbook for operational procedures. Incident-validator separately assesses incident
+artifacts against its resolved production-issue standard; it includes a dated
+fallback snapshot when the live standard cannot be reached.
 
 ## Working principles
 
@@ -60,7 +67,10 @@ evidence; incident-validator assesses the resulting closure evidence.
 
 ## Install
 
-Clone once:
+The commands below are for a fresh installation. For an existing installation,
+review the upgrade notes below before copying over skill folders.
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/CassioRoos/godfly-skills.git
@@ -80,20 +90,29 @@ mkdir -p ~/.codex/skills
 cp -R godfly-skills/skills/* ~/.codex/skills/
 ```
 
-Review and back up existing skill folders before updating an installation.
-Copying over an older installation does not remove retired skill directories or
-obsolete files inside retained skills. To match this repository, replace the
-selected installed folders with the corresponding repository folders and remove
-the four retired skills from that installation deliberately.
+Both copy commands install the same 16 skill folders. Individual skills can also
+be symlinked. Install the sibling skills referenced by the workflows you use;
+optional skills named in references are not necessarily bundled here. Host-specific
+paths and tool instructions may need adaptation. Tool access and permissions come
+from the host runtime, not from a skill file.
 
-Individual skills can also be symlinked. Install the sibling skills referenced
-by the workflows you use. Optional skills named in references are not necessarily
-bundled here; check availability before invoking them. Tool access and permissions
-come from the host runtime, not from a skill file.
+### Updating an existing installation
+
+Review and back up the installed folders you intend to replace. Copying over an
+older installation does not remove obsolete files inside retained skills.
+Replace the selected folders with the corresponding repository folders.
+
+The standalone `root-cause`, `evidence-grounding`, `deployment-monitor`, and
+`troubleshooting-investigator` skills are no longer included. Remove their installed
+folders deliberately if you want the repository's current selection. Useful evidence,
+troubleshooting, causal-analysis, and watch guidance now lives in retained skills;
+this is a consolidation, not a feature-for-feature replacement of every old workflow.
+Updating this clone alone does not change copied installations.
 
 ## Validation and evals
 
-Helper checks run against temporary fixtures:
+Run these helper checks from the cloned `godfly-skills` directory, with Git,
+Python 3, and a POSIX shell available. They use temporary fixtures:
 
 ```bash
 sh skills/toolshed/scripts/acceptance.sh
@@ -107,7 +126,9 @@ fixtures, judge rubrics, and historical example runs live in [evals/](evals/READ
 outside the installable skill directories. Keep judge answer keys out of the arm
 being evaluated. Paths in `evals/morpheus/evals.json` are relative to this repository
 root. Existing published runs describe the versions exercised at the time; they
-do not validate the current imported skills.
+do not validate later instruction changes. Morpheus's clarification and investigation
+revision has structural validation but no behavioral A/B result yet. Smaller
+instructions alone do not establish better task completion.
 
 ## License
 
