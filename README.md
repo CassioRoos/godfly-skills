@@ -1,9 +1,75 @@
 # godfly-skills
 
-**16 skills for evidence-backed engineering review, analysis, QA, incident
-validation, and task continuity.** Morpheus provides focused investigation and
-engineering judgment; Godfly provides an alternative review protocol with commands
-and a durable verdict graph. The remaining skills handle specific tasks when needed.
+**16 skills for Claude Code and Codex CLI: reviewers that demand evidence,
+analysis tools for the hard questions, and an ops toolkit that keeps the receipts.**
+
+Read the code. Challenge the assumption. Run the test. Reach a verdict.
+The point is to leave with a better decision and something you can verify.
+
+## Why yet another skills repo? 🙃
+
+Fair question. Another folder of prompts promising to turn your agent into a
+principal engineer deserves a raised eyebrow. Here is the actual pitch.
+
+**A strong opinion has to earn its place.**
+Morpheus and Godfly ask for code, tests, logs, or documented evidence before
+judging. They steelman your actual position, name what would change the verdict,
+and yield when the evidence goes the other way. A challenge against an argument
+you never made is just noise with confidence.
+
+**Questions should move the work forward.**
+Morpheus reads what it can discover itself, asks about consequential unknowns,
+and follows the answers that matter. Its stopping rules target the familiar
+failure mode where a two-line bug becomes an expedition into the nature of
+software. The intended destination is a supported answer, a verified fix, or a
+precise blocker. An endless interview is not a deliverable.
+
+**Proof has receipts.**
+MeanQA keeps cases and evidence under `.proof/`. Incident-validator separates
+"the PR merged" from "the fix is running and the affected flow works."
+Safe-ops checks authorization and reads back what changed. Toolshed preserves
+working state so the next session can pick up the task without archaeological
+fieldwork. Gauntlet tests whether a skill actually helps; a confident prompt
+still has to survive a comparison.
+
+**Pick the tool that earns its keep.**
+Morpheus is the focused second opinion. Godfly keeps the fuller adversarial
+protocol, commands, and verdict graph. Their review triggers overlap; choose
+one when the distinction matters. Reach for the other skills when the task
+needs their specific procedure. Sixteen skills is a toolbox, not a sixteen-step
+entrance exam.
+
+## The system
+
+Start with the situation. Solid arrows show entry points; dotted arrows show
+optional supporting work. These are choices, not an automatic chain of calls.
+
+```mermaid
+flowchart LR
+    Q{"What's the situation?"}
+    Q -->|"review, debug, research"| M["morpheus"]
+    Q -->|"review commands / verdict graph"| G["godfly"]
+    Q -->|"works, but nobody understands it"| DD["deep-dive"]
+    Q -->|"QA campaign"| MQ["mean-qa"]
+    Q -->|"can we close this incident?"| IV["incident-validator"]
+    Q -->|"authorized risky operation"| SO["safe-ops"]
+    Q -->|"keep task state"| TS["toolshed"]
+    Q -->|"does this skill actually help?"| GA["gauntlet"]
+
+    M -. "hidden assumptions" .-> AC["assumptions-check"]
+    M -. "competing approaches" .-> CH["competing-hypotheses"]
+    M -. "failure modes" .-> FA["failure-analysis"]
+    M -. "strongest opposing case" .-> DA["devils-advocate"]
+    M -. "attack and defense" .-> RB["red-blue-review"]
+    M -. "failure story and actions" .-> PP["premortem-postmortem"]
+    TS -. "continue in another session" .-> HO["handoff"]
+    TS -. "durable design decisions" .-> SA["spec-adr-builder"]
+```
+
+Morpheus also supports a deployment watch when explicitly requested, with a
+baseline, end time, read-only evidence, and an honest account of coverage gaps.
+The analysis skills can be invoked directly or used alongside either reviewer;
+the map shows a starting route, not exclusive ownership.
 
 ## Choose a skill
 
@@ -13,22 +79,20 @@ and a durable verdict graph. The remaining skills handle specific tasks when nee
 | Godfly's adversarial review protocol, commands, and durable verdict graph | [godfly](skills/godfly/SKILL.md) |
 | Surface and test hidden assumptions | [assumptions-check](skills/assumptions-check/SKILL.md) |
 | Compare architecture, technology, or strategy options | [competing-hypotheses](skills/competing-hypotheses/SKILL.md) |
-| Map a working but unfamiliar system | [deep-dive](skills/deep-dive/SKILL.md) |
+| It works, but nobody can explain how | [deep-dive](skills/deep-dive/SKILL.md) |
 | Prioritize component and dependency failure modes | [failure-analysis](skills/failure-analysis/SKILL.md) |
-| Make the strongest case for the opposing position | [devils-advocate](skills/devils-advocate/SKILL.md) |
+| Make the strongest case for the side nobody is arguing | [devils-advocate](skills/devils-advocate/SKILL.md) |
 | Examine attack paths and prevention, detection, containment, and recovery | [red-blue-review](skills/red-blue-review/SKILL.md) |
-| Anticipate a failure or write an evidence-backed postmortem | [premortem-postmortem](skills/premortem-postmortem/SKILL.md) |
+| Kill the project on paper; learn from the real failure | [premortem-postmortem](skills/premortem-postmortem/SKILL.md) |
 | Run a QA campaign with persistent, re-runnable proof | [mean-qa](skills/mean-qa/SKILL.md) |
 | Validate incident handovers, fix PRs, and closure claims | [incident-validator](skills/incident-validator/SKILL.md) |
 | Execute an authorized remote, destructive, or security-relevant operation | [safe-ops](skills/safe-ops/SKILL.md) |
 | Keep durable working state for one task | [toolshed](skills/toolshed/SKILL.md) |
 | Hand work to another session without reconstructing the thread | [handoff](skills/handoff/SKILL.md) |
 | Write a technical spec, ADR, or RFC | [spec-adr-builder](skills/spec-adr-builder/SKILL.md) |
-| Test whether a skill improves results against a no-skill control | [gauntlet](skills/gauntlet/SKILL.md) |
+| Make a skill prove it beats the model without it | [gauntlet](skills/gauntlet/SKILL.md) |
 
-Godfly and Morpheus overlap on review requests. Select one explicitly when the
-choice matters: Godfly retains its command-driven review and verdict graph;
-Morpheus emphasizes a concise verdict with cited findings, tradeoffs, and proof.
+## How Morpheus keeps its focus
 
 Morpheus asks when an answer could materially change the result, groups independent
 questions, and follows up as needed. Exhaustive interviewing is explicit-only.
@@ -55,15 +119,16 @@ fallback snapshot when the live standard cannot be reached.
   runtime evidence. Separate observations from inferences and guesses.
 - **Steelman before challenging.** Preserve the user's actual position and
   constraints. Evidence-backed approval is a valid result.
-- **Test the verdict.** Name what would overturn it and run the cheapest useful
-  check when it is available. Report untested boundaries.
+- **Try to break your own verdict.** Name what would overturn it and run the
+  cheapest useful check. Say what you could not test.
 - **Keep authorization explicit.** Safe-ops previews material effects, executes
   the authorized scope, and reads back the result. A review does not authorize
   publication; a PR does not authorize a merge or deployment.
-- **Keep proof durable.** MeanQA records cases and artifacts under `.proof/`;
-  Toolshed holds task state under `docs/work/<slug>/`, with surviving decisions
-  and evidence promoted before close.
-- **Challenge the work, never the person.** Intensity follows the stakes.
+- **State is mortal; useful evidence survives.** MeanQA keeps `.proof/` artifacts.
+  Toolshed keeps `docs/work/<slug>/` until close, when surviving decisions and
+  evidence move to permanent homes. The folder can die; the reasoning should not.
+- **Aim at the code, never the person.** Heat follows the stakes. During incidents,
+  drop the wit: blocker, impact, containment, next action.
 
 ## Install
 
