@@ -8,8 +8,7 @@ description: >
   "start a toolshed", "seed the task", "/toolshed start|resume|session-end|close",
   or "where were we". Session end = thin STATE update. Full packet only when
   explicitly requested or on close/ship gates. Evidence may also live in PRs,
-  CI, mean-qa, morpheus, monitoring runbooks — toolshed is a state shelf, not the
-  whole environment. Pair with morpheus, handoff, safe-ops, spec-adr-builder.
+  CI, and monitors — toolshed is a state shelf, not the whole environment.
 metadata:
   version: "2.1"
 ---
@@ -115,25 +114,13 @@ commit. Keep the source folder whenever preservation remains uncertain.
 
 Evidence grades: **MEASURED** · **CONFIRMED** · **REPORTED** · **UNRESOLVED**.
 
-## Composition (not the whole environment)
+## Scope
 
-Toolshed is **one shelf**. Do not stuff every activity into it. Discover the skills
-and tools available in the current host; the repository distributes the same skill
-folders for Claude Code and Codex. If a supporting skill is unavailable, do the
-needed work inline using available tools.
-
-| Need | Use |
-|---|---|
-| Task resume state | **toolshed** |
-| Adversarial review | `morpheus` |
-| ST/QA campaigns | `mean-qa` |
-| Post-deploy watch | Project monitoring runbook and live read-only evidence |
-| Incident paperwork | `incident-validator` |
-| Risky ops | `safe-ops` |
-| Off-repo note | `handoff` |
-| ADR/spec at close | `spec-adr-builder` |
-| Slack/memory product | **Workbench app** (not this skill) |
-| Ship evidence of record | **PR + CI + permanent docs** (and/or E-NNN) |
+Toolshed is **one shelf**: task resume state. Reviews, QA campaigns, deploy
+watching, incident paperwork, and ship evidence of record live elsewhere (PR +
+CI + permanent docs). Do not stuff every activity into it. If a supporting
+capability is unavailable in the current host, do the needed work inline. It is
+not the Workbench Slack/memory product.
 
 ## Flows
 
@@ -190,7 +177,7 @@ needed work inline using available tools.
    first. A flag is a human/agent attestation, not independent archive proof.
 2. Sweep unpromoted contract decisions (highest-risk failure mode —
    `assert-close.sh` warns when decided records carry no promotion/ADR link).
-3. Genre-map → ADR / spec delta / RFC / runbook (`spec-adr-builder` if available).
+3. Genre-map → ADR / spec delta / RFC / runbook .
    Inline load-bearing evidence that lives here; link PR/CI evidence otherwise.
 4. Stamp deliverables: `Toolshed: <repo>@<sha>, docs/work/<slug>/` — the SHA
    the evidence was **measured** at, plus "this commit" for the deliverable

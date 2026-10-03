@@ -3,9 +3,8 @@
 The user wants to know what is true about something external: a library, a protocol, a vendor
 behavior, a pattern, a "right way". The failure modes are specific: repeating the most-upvoted
 answer from years ago, treating a blog post and a vendor doc as equal, and delivering a survey when
-the user wanted a decision. For bulk fetching and synthesis, use `knowledge-harvester`
-if separately installed; otherwise gather and compare sources directly. Apply the
-discipline below and the provenance labels in `SKILL.md` to judge the evidence.
+the user wanted a decision. For bulk fetching and synthesis, gather and compare sources
+directly. Apply the discipline below and the provenance labels in `SKILL.md` to judge the evidence.
 
 ## Discipline
 

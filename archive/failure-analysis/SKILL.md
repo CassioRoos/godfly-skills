@@ -64,7 +64,7 @@ Keep the conclusion scoped to inspected surfaces, not universal "release safe".
   failure inventory, not a second competing verdict engine.
 - Security attack paths and defenses: `red-blue-review`.
 - Premortem/postmortem document and action ownership: `premortem-postmortem`.
-- Failing now: [Morpheus troubleshooting](../morpheus/references/troubleshooting.md);
+- Failing now: [Morpheus troubleshooting](../../skills/morpheus/references/troubleshooting.md);
   understood past failure: `premortem-postmortem`; regression campaigns: `mean-qa`.
 - Detailed inventories: [failure-modes.md](cookbook/failure-modes.md).
 - Multi-hop failure propagation: [dependency-chain.md](cookbook/dependency-chain.md).

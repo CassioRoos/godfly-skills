@@ -39,4 +39,4 @@ Do **not** produce a full closeout packet unless a trigger in
 ## If the next human/agent only reads chat
 
 They still get verdict + blocker + next gate. Everything else is in files or PR.
-Off-repo portable note → **handoff** skill — do not fatten STATE.md.
+Off-repo portable note → write a separate compact handoff note — do not fatten STATE.md.
