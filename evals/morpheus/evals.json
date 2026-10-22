@@ -181,7 +181,7 @@
     },
     {
       "id": 11,
-      "prompt": "I want to experiment with putting a Redis cache in front of partner config in svc-checkout to speed up checkout. Partners complain checkout is slow. Metrics are in METRICS.md. Validate the idea, I am thinking of starting on it tomorrow.",
+      "prompt": "I want to experiment with putting a Redis cache in front of partner config in checkout-api to speed up checkout. Partners complain checkout is slow. Metrics are in METRICS.md. Validate the idea, I am thinking of starting on it tomorrow.",
       "expected_output": "Evaluate mode, no code written. Verdict: kill (or run experiment first with a bounded ceiling). Restates the idea as a falsifiable claim with an observable (checkout p99 drops by X ms). Measures the ceiling first: GetPartnerConfig is 4 ms of an 820 ms p99, under 1%, so the cache cannot win more than about 4 ms. Points at psp.capture (610 ms) and fraud.score (140 ms) as where latency lives. Names a kill test (already answered by the span table, provenance read). Gives go/no-go thresholds fixed before any experiment. Asks only questions that flip the verdict, each with a recommendation and a counter-case. Next step is an experiment or a redirect, not a build plan.",
       "files": [
         "evals/morpheus/files/idea/METRICS.md"

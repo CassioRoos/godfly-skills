@@ -1,4 +1,4 @@
-# svc-checkout — POST /checkout, prod, 7 days ending 2026-10-18
+# checkout-api — POST /checkout, prod, 7 days ending 2026-10-18
 
 Request p99: 820 ms (n = 1,204,331)
 
