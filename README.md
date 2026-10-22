@@ -168,9 +168,9 @@ folder wholesale (delete it, then copy), rather than copying over it.
 These skills are no longer in the installation set and are now in
 [archive/](archive/README.md): `assumptions-check`, `competing-hypotheses`,
 `deep-dive`, `devils-advocate`, `failure-analysis`, `gauntlet`, `handoff`,
-`incident-validator`, `premortem-postmortem`, `red-blue-review`, `spec-adr-builder`
-(and, earlier, `godfly`). Earlier releases also dropped `root-cause`,
-`evidence-grounding`, `deployment-monitor`, and `troubleshooting-investigator`.
+`premortem-postmortem`, `red-blue-review`, `spec-adr-builder` (and, earlier,
+`godfly`). Earlier releases also dropped `root-cause`, `evidence-grounding`,
+`deployment-monitor`, `troubleshooting-investigator`, and `incident-validator`.
 Move any installed copies outside your host's skill discovery directories if you
 want the current selection. Updating this clone alone does not change copied
 installations.

@@ -5,8 +5,6 @@ task (feature, investigation), one folder per task, under
 **`docs/work/<slug>/`**. Any agent (Claude, Codex, Grok, …) and any human works
 the same way. Skill name: **toolshed**. This file is the whole contract.
 
-**Not the Workbench product** (Slack/highlights app + MCP). Different system.
-
 ## Reading order for a fresh session
 
 1. `docs/work/<slug>/STATE.md` — thin resume surface.

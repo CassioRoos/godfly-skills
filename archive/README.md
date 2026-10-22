@@ -6,7 +6,7 @@ These skills are parked for reference and possible restoration. They are outside
 ## 2026-10 consolidation
 
 Archived on 2026-10-03: `assumptions-check`, `competing-hypotheses`, `deep-dive`,
-`devils-advocate`, `failure-analysis`, `gauntlet`, `handoff`, `incident-validator`,
+`devils-advocate`, `failure-analysis`, `gauntlet`, `handoff`,
 `premortem-postmortem`, `red-blue-review`, and `spec-adr-builder`.
 
 - The adversarial lenses (assumptions, alternatives, failure modes, devil's
@@ -21,8 +21,8 @@ Archived on 2026-10-03: `assumptions-check`, `competing-hypotheses`, `deep-dive`
 - `gauntlet` worked, but its LLM-judge step was too noisy to trust single
   verdicts (two judges scored identical text 25/100 apart). Skill testing moved
   to baseline-arm benchmarks with deterministic assertions.
-- `deep-dive`, `handoff`, `spec-adr-builder`, and `incident-validator` saw no
-  use and are retired to keep the set small.
+- `deep-dive`, `handoff`, and `spec-adr-builder` saw no use and are retired to
+  keep the set small.
 
 Links inside these folders were adjusted so archived skills still resolve to
 each other. Restore one by moving it back to `skills/` and reviewing its links.

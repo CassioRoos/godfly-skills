@@ -4,7 +4,6 @@ Durable working state for **one coding task**, path **`docs/work/<slug>/`**,
 skill name **toolshed**. Deleted at close. Survivors = ADR / spec / RFC.
 *"BS if we keep it; under the same feature it is gold."*
 
-**Not the Workbench product** (`altpay/workbench` Slack/highlights + MCP).
 The per-repo convention file is `docs/work/TOOLSHED.md` (legacy `WORKBENCH.md`
 is auto-migrated by `seed.sh`).
 

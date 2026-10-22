@@ -124,7 +124,6 @@ Sibling skills:
 | Launch/attack-surface review | [red-blue-review](../red-blue-review/SKILL.md) | Attack paths, defense controls, ship/block/spike gate |
 | Future or past failure framing | [premortem-postmortem](../premortem-postmortem/SKILL.md) | Premortem threats, postmortem evidence timeline |
 | Someone should argue the other side | [devils-advocate](../devils-advocate/SKILL.md) | Strongest case FOR the alternative |
-| Incident closure paperwork | [incident-validator](../incident-validator/SKILL.md) | Closure gates, postmortem rubric |
 
 My own leaves:
 

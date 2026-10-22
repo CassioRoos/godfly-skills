@@ -55,7 +55,6 @@ Write a handoff that lets a fresh agent continue without spelunking the entire c
   toolshed gitignored/local-only, or a compact note outside the tree.
 - Do **not** re-serialize a full toolshed closeout packet into the handoff.
   Point at `docs/work/<slug>/STATE.md`, PR URLs, and SHAs.
-- **Not** the Workbench product/MCP (Slack/highlights app).
 
 ## Rules
 
