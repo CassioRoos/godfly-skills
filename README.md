@@ -1,7 +1,8 @@
 # godfly-skills
 
-**6 skills for Claude Code and Codex CLI: two reviewers that demand evidence,
-and an ops toolkit that keeps the receipts.**
+**7 skills for Claude Code and Codex CLI: two reviewers that demand evidence,
+a BDD method guide, and an ops toolkit that keeps the receipts. Plus the
+operating guide that ties them into a working style.**
 
 Read the code. Challenge the assumption. Run the test. Reach a verdict.
 The point is to leave with a better decision and something you can verify.
@@ -20,7 +21,7 @@ argument you never made is just noise with confidence.
 **Fewer skills, no overlap, no chains.**
 This repository used to ship fifteen skills that pointed at each other. In measured
 runs, some of them did no better than the model alone, and overlapping skills
-make the model choose between near-duplicates. The set is now six, each
+make the model choose between near-duplicates. The set is now seven, each
 self-contained: no skill needs another skill's file to do its job. A description
 states what the skill is *not* for in plain words instead of routing to a sibling.
 
@@ -34,12 +35,13 @@ the next session can pick up the task without archaeological fieldwork.
 
 | Situation | Skill |
 |---|---|
-| Focused second opinion, decisions, troubleshooting, research, or a requested deploy watch | [morpheus](skills/morpheus/SKILL.md) |
+| Focused second opinion, decisions, troubleshooting, research, idea evaluation, or a requested deploy watch | [morpheus](skills/morpheus/SKILL.md) |
 | Structured adversarial review: red/blue team, premortem, devil's advocate, alternatives, failure modes (FMEA), assumptions, inversion, PR/incident gate | [adversarial-review](skills/adversarial-review/SKILL.md) |
 | Run a QA campaign with persistent, re-runnable proof | [mean-qa](skills/mean-qa/SKILL.md) |
 | Prove a UI change works in a real browser, with captured evidence | [ui-proof](skills/ui-proof/SKILL.md) |
 | Execute an authorized remote, destructive, or security-relevant operation | [safe-ops](skills/safe-ops/SKILL.md) |
 | Keep durable working state for one task | [toolshed](skills/toolshed/SKILL.md) |
+| Discover, write, review, or evolve acceptance scenarios (Given / When / Then) | [bdd](skills/bdd/SKILL.md) |
 
 Morpheus and adversarial-review overlap on purpose for now: both are installed
 while they are compared. Expect one of them to be archived once the comparison
@@ -70,6 +72,45 @@ For active failures, its [troubleshooting reference](skills/morpheus/references/
 covers containment, reproduction, discriminating tests, and evidence-backed fixes.
 Its [research reference](skills/morpheus/references/research.md) preserves the requested
 question and recommends an option when a choice was requested.
+
+For an idea or an experiment, its [evaluate reference](skills/morpheus/references/evaluate.md)
+evaluates and does not build. The steps are:
+
+1. Restate the idea as a falsifiable claim.
+2. Give each assumption one deterministic check.
+3. Measure the payoff ceiling first.
+4. Run the cheapest kill test.
+5. Fix the go/no-go thresholds before any data arrives.
+
+Building waits for an explicit go. Example: a Redis cache for a query that takes
+4 ms of an 820 ms p99 can win less than 1%. The verdict is to kill the idea or
+redirect it, not to start a branch.
+
+## BDD in one paragraph
+
+BDD here is the method, not the tool. The skill orders the work: discover rules
+and examples, then write scenarios, then automate. Gherkin is the output of the
+writing step, not the method. It stops and asks when an example has no agreed
+outcome. It keeps scenarios declarative and in domain language, with real
+values and at least one failure path. For a failing scenario it decides between
+three outcomes: fix the code, move the scenario, or delete it. The whole skill
+is about 500 words, with no commands or scripts.
+
+## Operating guide
+
+[guides/AGENTS.md](guides/AGENTS.md) is the global instruction file these skills
+are written to work with. It sets a principal-engineer lens, an evaluator stance
+(challenge claims with evidence, evaluate ideas before building, ask decisions as
+numbered questions with a recommendation and the strongest case against it),
+pinned-evidence invariants, a technical writing style, and the rule to route
+risky operations through safe-ops.
+
+It is a guide, not a skill. Read it and keep the parts you agree with:
+
+- Codex CLI reads `~/.codex/AGENTS.md`.
+- Claude Code reads `~/.claude/CLAUDE.md`.
+
+Merge the parts you want into your existing file. Do not overwrite the file.
 
 ## Working principles
 
@@ -113,9 +154,8 @@ mkdir -p ~/.codex/skills
 cp -R godfly-skills/skills/* ~/.codex/skills/
 ```
 
-Both copy commands install the same 6 skill folders. Individual skills can also
-be symlinked. Host-specific
-paths and tool instructions may need adaptation. Tool access and permissions come
+Both copy commands install the same 7 skill folders. Individual skills can also
+be symlinked. Host-specific paths and tool instructions may need adaptation. Tool access and permissions come
 from the host runtime, not from a skill file.
 
 ### Updating an existing installation
@@ -162,6 +202,11 @@ diagnostic, not evidence of superiority. [Re-runnable fixtures and independent
 checks](evals/morpheus/controlled/README.md) cover implementation, approval of correct
 work, and a justified missing-policy blocker. Smaller instructions alone do not
 establish better task completion.
+
+Two parts are not measured yet. Morpheus evaluate mode has a fixture (eval 11,
+[`evals/morpheus/files/idea/`](evals/morpheus/files/idea/METRICS.md)), but no
+published run. BDD has no eval. Treat both as unproven until a run compares
+them with the no-skill control.
 
 ## License
 
