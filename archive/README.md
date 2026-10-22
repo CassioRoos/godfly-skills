@@ -29,16 +29,21 @@ each other. Restore one by moving it back to `skills/` and reviewing its links.
 
 ## Godfly
 
-[Godfly](godfly/SKILL.md) is archived as of 2026-09-08. Its review role overlaps
-with Morpheus; keeping one active reviewer supports a simpler workflow.
-The original instructions and all four cookbook references are retained, with
-sibling-skill links adjusted for this location. Morpheus gains no new instructions
-as part of this archive.
+[Godfly](godfly/SKILL.md) was archived on 2026-09-08. Morpheus is the active
+reviewer. One reviewer keeps the workflow simple.
 
-To restore it, move `archive/godfly/` back to `skills/godfly/`, change its
-`../../skills/` sibling links back to `./../`, and update the README inventory,
-diagram, and installation count. Review the instructions before installing.
+The archived copy keeps the original instructions and all four cookbook
+references. Its eval fixtures and rubric are in [evals/godfly/](../evals/godfly/).
+Its sibling links point at skills that are also archived, so they resolve
+inside this folder.
 
-Existing installed copies are independent of this repository. Archiving here
-does not disable them; move those copies outside the host's skill discovery
-directories separately.
+To restore it:
+
+1. Move `archive/godfly/` to `skills/godfly/`.
+2. Restore each sibling it links to, or remove that link. Every sibling it
+   links to is archived.
+3. Add it to the README skill table and the installation count.
+4. Review the instructions before you install it.
+
+Installed copies do not depend on this repository. Archiving here does not
+disable them. Move those copies outside the host's skill discovery directories.

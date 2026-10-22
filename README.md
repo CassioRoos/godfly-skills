@@ -48,6 +48,8 @@ while they are compared. Expect one of them to be archived once the comparison
 has evidence behind it.
 
 Retired skills live in [archive/](archive/README.md), outside the installation set.
+That includes godfly, the reviewer this repository is named after. Godfly is
+archived, and Morpheus is the active reviewer that replaces it.
 
 ## Adversarial-review in one paragraph
 
