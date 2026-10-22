@@ -2,7 +2,7 @@
 
 Every measurement that lands **here** needs its **reproduction command** —
 a number without its query is trivia. Evidence may also live in **PRs, CI,
-mean-qa ledgers, monitors** — if so, record a short pointer (link/SHA) rather
+QA ledgers, monitors** — if so, record a short pointer (link/SHA) rather
 than pasting novels into STATE.md.
 
 Grades — one line each, this is the definition of record:

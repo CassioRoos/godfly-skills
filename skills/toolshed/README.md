@@ -69,8 +69,8 @@ sh $SKILL/scripts/assert-state.sh exp-1842-local-serving --soft
 
 ## Composition
 
-Toolshed is a **state shelf**. Morpheus, mean-qa, monitoring runbooks, handoff,
-safe-ops, incident-validator, and **PR/CI** carry proof and review. Do not
+Toolshed is a **state shelf**. Reviews, QA, deploy monitoring, and **PR/CI**
+carry proof. Do not
 build the whole environment around toolshed.
 
 ## Enforcement (optional but recommended)

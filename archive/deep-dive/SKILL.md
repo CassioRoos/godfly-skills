@@ -30,7 +30,7 @@ Go deep enough to be useful, not deep enough to drown. The output should clarify
 
 ## Evidence Standards
 
-Prefer file references, tests, logs, docs, metrics, and commit history over guesses; separate confirmed facts from inferences; search current docs before concluding. Resolve competing explanations of a working system against code and runtime evidence inline. For active failures use the [Morpheus troubleshooting reference](../morpheus/references/troubleshooting.md). Use competing-hypotheses only to choose between architecture, technology or strategy options.
+Prefer file references, tests, logs, docs, metrics, and commit history over guesses; separate confirmed facts from inferences; search current docs before concluding. Resolve competing explanations of a working system against code and runtime evidence inline. For active failures use the [Morpheus troubleshooting reference](../../skills/morpheus/references/troubleshooting.md). Use competing-hypotheses only to choose between architecture, technology or strategy options.
 
 ## Output
 

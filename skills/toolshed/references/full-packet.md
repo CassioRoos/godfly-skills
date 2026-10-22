@@ -21,7 +21,7 @@ programs**. This is **not** the default end of a coding session.
 |---|---|
 | Chat | Progressive disclosure. First screen = verdict/blocker/next gate. |
 | Repo | Prefer `docs/work/<slug>/packet.md` — **never** paste into `STATE.md`. |
-| Outside repo | `handoff` skill if toolshed is local-only or next agent has no clone. |
+| Outside repo | a compact off-repo handoff note if toolshed is local-only or next agent has no clone. |
 | PR | Often better than packet.md for ship evidence of record. |
 
 ## Progressive presentation

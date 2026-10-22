@@ -86,8 +86,8 @@ _(none)_
 
 ## Composition
 
-Toolshed is a **state shelf**, not the whole environment. Pair with morpheus,
-mean-qa, monitoring runbooks, handoff, safe-ops, PR/CI as needed.
+Toolshed is a **state shelf**, not the whole environment. Proof lives in
+PRs, CI, and permanent docs.
 
 ## Close-out
 

@@ -3,8 +3,7 @@
 The user has a failure and usually a theory. The theory is the most dangerous object in the room:
 it arrived first, it explains the symptom, and it is wrong often enough that a senior treats it as
 hypothesis number one, not as the plan. Use the procedure below with the project
-runbook for investigation; use `premortem-postmortem` for the evidence timeline,
-contributing factors, and corrective actions after an incident.
+runbook for investigation.
 
 ## Order of operations
 
