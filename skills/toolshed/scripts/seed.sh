@@ -136,9 +136,7 @@ for F in CLAUDE.md AGENTS.md; do
       "Laws: mortal (deleted at close); deliverables = ADRs/specs/RFCs;" \
       "contracts promote immediately; upsert-only records; evidence grades +" \
       "reproduction commands (or PR/CI pointers); no PII; Understanding before" \
-      "proposal (\`assert-started.sh\`); thin session-end (not full packet by default)." \
-      "" \
-      "**Not the Workbench product/MCP** (Slack/highlights app)."
+      "proposal (\`assert-started.sh\`); thin session-end (not full packet by default)."
   } >> "$P"
   if [ "$EXISTED" -eq 1 ]; then
     echo "  point  $F — updated (pointer block appended); review and stage yourself"

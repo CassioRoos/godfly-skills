@@ -22,16 +22,6 @@ Everything in `docs/work/<slug>/` dies at close. Survivors are formal genres
 
 Path stays under **`docs/`**: `docs/work/<slug>/`. The skill name is **toolshed**.
 
-## Name collision (read this)
-
-| Name | What it is | Path / surface |
-|---|---|---|
-| **Toolshed** (this skill) | Mortal task state | `docs/work/<slug>/`, skill `toolshed`, `/toolshed` |
-| **Workbench** (product) | Ops app: Slack/highlights/memory + MCP | `altpay/workbench`, `mcp_servers.workbench` |
-
-If the user says "update the workbench" without a slug or `docs/work` path,
-**ask which one** (product vs toolshed) before writing.
-
 ## The law (non-negotiable)
 
 The laws bind **the agent, not the owner**. An owner may **waive** a law: the
@@ -119,8 +109,7 @@ Evidence grades: **MEASURED** · **CONFIRMED** · **REPORTED** · **UNRESOLVED**
 Toolshed is **one shelf**: task resume state. Reviews, QA campaigns, deploy
 watching, incident paperwork, and ship evidence of record live elsewhere (PR +
 CI + permanent docs). Do not stuff every activity into it. If a supporting
-capability is unavailable in the current host, do the needed work inline. It is
-not the Workbench Slack/memory product.
+capability is unavailable in the current host, do the needed work inline.
 
 ## Flows
 
@@ -241,7 +230,6 @@ against bloat, not proof the shape is right; the list above is the contract.
   plausibly finish this session **and** produces no contract-changing decision
   — use inline notes / the task list. Seed at the **first real resume** or the
   **first contract decision**, whichever comes first.
-- **Not the Workbench product/MCP.**
 - **Not an orchestrator** or the only place evidence may live.
 - **Not a program playbook** (EXP-class permanent docs win when present).
 - **Not documentation to keep** — write ADR/spec, delete the folder.

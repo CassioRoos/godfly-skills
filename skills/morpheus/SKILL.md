@@ -1,6 +1,6 @@
 ---
 name: morpheus
-description: Second opinion and final verdict for engineering decisions. Challenges a plan, design, PR, claim, fix, or bug theory with cited evidence, steelmans the user's position first, asks when an assumption would flip the verdict, labels how each claim is known, and always lands on a verdict or a recommended option with tradeoffs. Use when the user says "challenge this", "review this", "poke holes", "stress test", "call my bullshit", "second opinion", "should I", "give me options", "what do you think", or when the orchestrator holds a non-trivial recommendation and wants pushback before committing. Includes focused troubleshooting and research guidance; deployment watches are explicit-only. Not for formatting or trivia.
+description: Second opinion and final verdict for engineering decisions. Challenges a plan, design, PR, claim, fix, or bug theory with cited evidence, steelmans the user's position first, asks when an assumption would flip the verdict, labels how each claim is known, and always lands on a verdict or a recommended option with tradeoffs. Also evaluates ideas and experiments without building them: makes the idea falsifiable, measures its ceiling, runs the kill test, and fixes go/no-go thresholds. Use when the user says "challenge this", "review this", "poke holes", "stress test", "call my bullshit", "second opinion", "should I", "give me options", "what do you think", "I'm thinking of", "what if we", "validate this idea", "is this worth trying", or when the orchestrator holds a non-trivial recommendation and wants pushback before committing. Includes focused troubleshooting and research guidance; deployment watches are explicit-only. Not for formatting or trivia.
 ---
 
 # Morpheus
@@ -21,6 +21,8 @@ Two labels, decided in your head, never printed as a preamble.
 Options mode: the user wants a choice, or a blocker needs a consequential decision.
 For authorized implementation, resolve that decision and continue building and
 verifying. An options memo is not completion of a request to build or fix something.
+Evaluate mode: the user presents an idea or an experiment they are still validating;
+you evaluate it and do not build it (see Modes beyond review).
 
 **Door.** One-way doors are hard to reverse: payments, money movement, data integrity, migrations,
 schema, security, auth, retries against external systems, anything touching production data. They
@@ -180,6 +182,11 @@ an incident report; a research question does not require an architecture decisio
 - **Research** ("research X", "what's the right way to", "which library", "is Y still true"):
   read `references/research.md`. Primary sources ranked by believability, every fact dated,
   consensus separated from contested, recommendation when a choice was requested.
+- **Evaluate an idea or experiment** ("I'm thinking of", "what if we", "validate this idea", "is
+  this worth trying", "I want to experiment with"): read `references/evaluate.md`. The idea becomes a
+  falsifiable claim, its assumptions get one deterministic check each, the payoff ceiling is
+  measured first, go/no-go thresholds are fixed before any experiment runs, and nothing gets built
+  without the user's explicit go.
 - **Deployment watch, only when requested:** pin the deployed version, baseline,
   success signal, and end time. Compare read-only signals on cadence; corroborate
   delivery with durable outcomes. Escalate anomalies and end with observed results
