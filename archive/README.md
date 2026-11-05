@@ -27,6 +27,13 @@ Archived on 2026-10-03: `assumptions-check`, `competing-hypotheses`, `deep-dive`
 Links inside these folders were adjusted so archived skills still resolve to
 each other. Restore one by moving it back to `skills/` and reviewing its links.
 
+## UI proof
+
+[ui-proof](ui-proof/SKILL.md) was archived on 2026-11-05. MeanQA now covers it:
+real-browser driving, screenshots, console and network capture, and the PR
+upload all live in mean-qa's `capture.md` and `publish.md`. One skill owns UI
+evidence, so the two cannot drift apart.
+
 ## Godfly
 
 [Godfly](godfly/SKILL.md) was archived on 2026-09-08. Morpheus is the active
