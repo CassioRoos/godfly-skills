@@ -1,124 +1,100 @@
-# Attack Design
+# Attack — design cases that find defects
 
-The job is not to confirm the feature works. It is to find the input, ordering,
-or failure that makes it lose money, corrupt state, harm someone, or lie.
+The job is not to confirm the feature works. It is to find the input, order or failure that makes it lose money, corrupt state, harm someone or lie.
 
-## 1. Derive the harm model — do not reach for a checklist
+## 1. Name the harm
 
-Checklists encode someone else's domain and go stale. Six questions produce the
-right one for any domain:
+1. What is the unit of harm here? Money moved wrongly, a record disclosed, a message that cannot be recalled. Name it in one sentence.
+2. What must never happen, even once?
+3. Who must never see this, and who must always be able to? Wrongful denial is harm too.
+4. Which deadline or timing carries consequence?
+5. What record must exist afterwards to defend the decision?
 
-1. **What is the unit of harm here?** Money moved wrongly. A wrong dose. A
-   sealed record disclosed. A shipment that cannot be recalled. Name it in a
-   sentence.
-2. **What must never happen, no matter what?** The ones worth writing down are
-   where a single occurrence is an incident, not a degradation.
-3. **What is irreversible?** No recovery path means the harshest testing.
-4. **Who must never see this, and who must always be able to?** Both directions
-   are harm. Wrongful disclosure and wrongful denial are each real, and the
-   second is the one campaigns forget.
-5. **What deadline or timing carries consequence?** Time-derived harm is
-   invisible until the boundary, then total.
-6. **What must be reconstructable afterwards?** If someone must defend this
-   decision in an audit or an investigation, what record must exist?
+In a regulated domain the correct behaviour often lives outside the code (a statute, a standard). Name the rule and ask. Never state a regulatory requirement from general knowledge.
 
-If the domain is unfamiliar, ask the user what a bad day looks like for the
-people this system serves, and test that.
+## 2. Make each dependency fail
 
-**In regulated domains the correct behaviour is often defined outside the
-codebase** — a statute, a standard, a protocol. Neither the spec nor the code is
-the oracle there. Name the rule and ask; never infer a regulatory requirement
-from general knowledge and report it as fact.
+For each service, cache, lookup, flag or config value the operation reads:
 
-## 2. The dependency question — work this first
+1. Make it unavailable, slow, or ignorant (empty answer).
+2. Assert the operation refuses, rather than proceeds on a zero value.
 
-For every external thing the operation consults — service, cache, lookup table,
-dictionary, feature flag, config — ask what the code **receives** when it is
-unavailable, degraded, or simply does not know, and then what the code **does**
-with that value.
-
-The dangerous shape is a call with **no error return**. It cannot fail, so it
-returns a zero value instead. Check which way that falls:
-
-- A classifier returning `""` matches nothing — a check looking for a match
-  finds none and **lets everything through**. The gate is now a no-op for every
-  request at once, silently, with no error and no metric.
-- A predicate returning `false` skips the branch it guards — a special
-  calculation is bypassed and raw input is used as if it were computed. Intent
-  reinterpreted, not rejected.
-- An empty list reads as "nothing to worry about" rather than "I could not look."
-
-Test it by making the dependency unavailable or ignorant and asserting the
-operation **refuses** rather than proceeds.
-
-This class is systematically under-tested: testers exercise a dependency
-returning *wrong* data far more readily than one returning *nothing*, because
-the first is a bug you can imagine and the second looks like it cannot happen.
+Testers feed a dependency wrong data far more often than no data. The second is where the silent no-op gates live.
 
 ## 3. The axes
 
-| Axis | The question | Classic yield |
+| Axis | Question | Typical defect |
 |---|---|---|
-| **Concurrency** | Two at once? | Check-then-act races, lost updates, spend past a ceiling |
-| **Duplication** | Same request twice? | Missing idempotency, retry-after-timeout, replayed event |
-| **Partial failure** | Every external call has three outcomes — success, failure, **unknown**. Dies between N and N+1? | Value moved with no record, event published before commit, orphans |
-| **Boundary** | Zero, negative, empty, max, one-past, exactly-at? | Off-by-one, sign errors, inclusive/exclusive confusion |
-| **Identity** | Caller is someone else, or nobody? | Missing ownership check, "internal" endpoint, cross-tenant read |
-| **Time** | Clock moves, differs, or the boundary is exact? | Timezone/DST, expiry windows, skew between services |
+| Concurrency | Two at once? | Check-then-act race, lost update, spend past a limit |
+| Duplication | Same request twice? | No idempotency, retry after timeout, replayed event |
+| Partial failure | Dies between step N and N+1? Every external call has success, failure and unknown. | Value moved with no record, event published before commit |
+| Boundary | Zero, negative, empty, max, one past, exactly at? | Off-by-one, sign error, inclusive/exclusive mix-up |
+| Identity | Someone else, or nobody? | Missing ownership check, cross-tenant read |
+| Time | Clock moves, differs, or sits on the boundary? | Timezone, DST, expiry window, skew between services |
 
 ## 4. Find the cut corner
 
-Read the implementation hunting the shortcut taken at 6pm: a read followed by a
-conditional write with no transaction between them; an error path returning
-early leaving earlier writes behind; validation covering only the fields the
-happy path uses; a publish before the commit it describes; a status field that
-exists and is never read; a filter excluding one state and silently including
-the rest.
+Read the implementation for the shortcut: a read then a conditional write with no transaction; an early error return that leaves earlier writes behind; validation on happy-path fields only; a publish before the commit it describes; a status field nobody reads; a filter that excludes one state and silently includes the rest. Each one is a case.
 
-Each tell is a scenario. Write the one that makes the shortcut visible.
+## 5. The cheap probes
 
-## 4a. The cheap probes, in full
+Each probe costs one request. Run them on every input-accepting surface, in blast-radius order, until the budget runs out. Every surface you did not reach is a `➖ not run` row that names the missing probes.
 
-The axes above find defects that require thought. This list finds the ones that
-require only a request — and a campaign hunting the first kind reliably walks
-past the second. Run all of it against every input-accepting surface.
-
-| Probe | What it catches |
+| Probe | Catches |
 |---|---|
-| Bytes that are not valid input at all | parser leaking a 5xx and an internal message instead of a 4xx |
-| Wrong type per field — string for number, `null`, array for object | unguarded casts, 500s, silent coercion |
-| Missing required field · unexpected extra field | validation that only covers the happy path; mass-assignment |
-| Every client-supplied value the server should not trust — timestamp, id, total, status, actor | fields the server accepts and stores unvalidated; read the record back to see |
-| Zero · negative · empty string · one past max · exactly at the limit | sign errors, off-by-one, inclusive/exclusive confusion |
-| The same request twice, then N at once | missing idempotency, check-then-act races |
-| No credential · another actor's id · an id that does not exist | missing authz, enumeration, error-shape leaks |
-| Oversized field, unicode, control characters | truncation, encoding corruption, injection surface |
+| Bytes that are not valid input | A parser that leaks a 5xx and an internal message |
+| Wrong type per field: string for number, `null`, array for object | Unguarded casts, silent coercion |
+| Missing required field; unexpected extra field | Happy-path-only validation, mass assignment |
+| Client-supplied timestamp, id, total, status, actor | Values stored without validation. Read the record back. |
+| Zero, negative, empty string, one past max, exactly at limit | Sign and boundary errors |
+| The same request twice, then N at once | Missing idempotency, races |
+| No credential; another actor's id; an id that does not exist | Missing authorization, enumeration, error-shape leaks |
+| Oversized field, unicode, control characters | Truncation, encoding corruption, injection |
 
-**Read the error contract, not just the status.** A 500 where a 400 belongs is a
-defect even when the request was nonsense — it means an unhandled path, and the
-body usually names an internal detail an attacker would like.
+Read the error contract, not only the status. A 500 where a 400 belongs is a defect, and its body often names an internal detail.
 
-**An endpoint called only with well-formed input has not been tested.** If you
-deliberately skip this list, say so in the report and say why.
+**Bypass the UI.** Every constraint the UI enforces is also a case at the API. Send the value the form would block, the foreign id the list would hide, the action behind the hidden button.
 
-## 5. Bypass the interface
+## 6. Rank and predict
 
-**Every constraint the interface enforces is a case at the API.** Take the
-request the UI would send, change the value the UI would not let you enter, and
-send it directly — a negative where the input blocks negatives, a foreign ID
-where the list only shows yours, the mutation behind the hidden button. A rule
-that lives only in the component is not a rule.
+Rank by what the defect costs: silent money or data loss → wrong value shown later → authority violation → stuck or corrupt state → wrong error contract → cosmetic. A run cut short must still have run the expensive part.
 
-## 6. Rank by blast radius, and predict
+Before each case, write the expected result and the `Fails if` condition. A case whose outcome you cannot predict is an exploration. Label it. An exploration that "passes" proves nothing.
 
-Order by what the defect costs if real, never by how easy the test is to write.
-Per scenario, state the expected result and the invariant it attacks *before*
-running, and say what would make you call the feature broken. If nothing would,
-the scenario is theatre.
+## 7. Write cases, not topics
 
-## Disqualifiers
+```markdown
+### TC-04 — A paid expense can be approved again
 
-Testing only what the spec describes — the spec is the happy path, and defects
-live in what it forgot · every scenario a single request, when real defects need
-sequences · topic areas instead of executable scenarios with inputs and
-predicted outcomes · ranking by convenience.
+**Attacks:** legal transitions · **Oracle:** spec §3 "paid is terminal" · **Fixture:** `EXP-PAID` (status paid, amount 240.00)
+**Input:** `POST /expenses/exp-7f21/approve` as `mgr-002`
+**Expected:** 409, row unchanged
+**Fails if:** any 2xx, or the stored status changes
+**Graduates to:** a unit test on the transition table
+```
+
+- **Stable ID.** Assigned once, never reused, so a re-run reports "TC-04 still fails".
+- **Title names the failure**, not the component.
+- **Literal inputs.** Never "various invalid inputs".
+- **Fixtures** are named once, before the cases, with the properties that matter.
+- **One case per distinct cause.** Two cases that fail for the same reason are one case with two input rows.
+- **Graduates to** names the permanent test the case should become. Omit it when none is worth writing.
+
+## 8. Re-runs
+
+The case list lives in the PR body. A re-run on a new head SHA:
+
+1. reads the previous case list from the PR,
+2. reports each ID as `✅ pass`, `❌ fail`, `➖ not run` or retired (with the reason),
+3. adds new cases only when they attack something new.
+
+Never drop a case silently.
+
+## 9. Graduation
+
+A case becomes a permanent test when it caught something real, or guards an expensive invariant.
+
+1. Show the test failing on the broken code first.
+2. One defect per test.
+3. Assert the specific value, never non-null or a bare 200.
+4. Write it into the project's own suite, in its own conventions.

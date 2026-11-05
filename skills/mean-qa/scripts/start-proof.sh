@@ -2,12 +2,12 @@
 # Create a MeanQA run directory and its initial proof document as one publish.
 #
 # Usage:
-#   sh start-proof.sh <project-root> <run-slug> <environment> <build>
+#   sh start-proof.sh <project-root> <run-slug> <environment> <head-sha>
 set -eu
 umask 077
 
 usage() {
-  echo "usage: start-proof.sh <project-root> <run-slug> <environment> <build>" >&2
+  echo "usage: start-proof.sh <project-root> <run-slug> <environment> <head-sha>" >&2
   exit 2
 }
 
@@ -34,7 +34,7 @@ mkdir -p "$PROOF_ROOT" || {
   exit 1
 }
 
-STAMP=$(date '+%Y-%m-%d-%H%M')
+STAMP=$(date -u '+%Y-%m-%d-%H%MZ')
 NAME=$STAMP-$SLUG
 SUFFIX=1
 while [ -e "$PROOF_ROOT/$NAME" ] || ! mkdir "$PROOF_ROOT/.reserve-$NAME" 2>/dev/null; do
@@ -64,21 +64,26 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-STARTED=$(date '+%Y-%m-%dT%H:%M:%S%z')
+STARTED=$(date -u '+%Y-%m-%d %H:%M UTC')
 mkdir "$STAGING/cases"
 cat > "$STAGING/PROOF.md" <<EOF
-# $TITLE — QA proof
+<!-- mean-qa:begin -->
+## Verification (QA report) — $TITLE
 
 **Verdict:** IN PROGRESS — coverage is incomplete
-**Environment:** $ENVIRONMENT · **Build under test:** $BUILD
-**Run started:** $STARTED · 0 cases
+**Head SHA:** $BUILD · **Environment:** $ENVIRONMENT
+**Build under test:** unknown until proven
+**Run:** started $STARTED · 0 cases
 
-| # | Case | Expected | Result | Time | Evidence |
+### Results
+| ID | Case | Expected | Result | Time | Evidence |
 |---|---|---|---|---|---|
 
-## Residual risk
+### Evidence
 
+### Residual risk
 - The run is still in progress and has no completed coverage yet.
+<!-- mean-qa:end -->
 EOF
 
 if [ ! -s "$STAGING/PROOF.md" ]; then
@@ -97,6 +102,19 @@ trap - EXIT HUP INT TERM
 if [ ! -s "$FINAL/PROOF.md" ]; then
   echo "start-proof.sh: published PROOF.md failed read-back: $FINAL/PROOF.md" >&2
   exit 1
+fi
+
+# Keep evidence out of git without touching .gitignore, so the PR diff stays clean.
+if git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
+  ! git -C "$PROJECT_ROOT" check-ignore -q "$FINAL/PROOF.md" 2>/dev/null; then
+  EXCLUDE=$(cd "$PROJECT_ROOT" && git rev-parse --path-format=absolute --git-path info/exclude 2>/dev/null) || EXCLUDE=
+  if [ -n "$EXCLUDE" ]; then
+    mkdir -p "$(dirname -- "$EXCLUDE")"
+    printf '%s\n' '.proof/' >> "$EXCLUDE"
+    echo "start-proof.sh: added .proof/ to $EXCLUDE" >&2
+  else
+    echo "start-proof.sh: WARNING .proof/ is not ignored; never stage it" >&2
+  fi
 fi
 
 printf '%s\n' "$FINAL/PROOF.md"

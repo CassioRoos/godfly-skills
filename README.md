@@ -26,8 +26,8 @@ self-contained: no skill needs another skill's file to do its job. A description
 states what the skill is *not* for in plain words instead of routing to a sibling.
 
 **Proof has receipts.**
-MeanQA keeps cases and evidence under `.proof/`. UI-proof drives a real browser
-and attaches screenshots, console, and network evidence. Safe-ops checks
+MeanQA reviews a change for gaps, drives the API, the data and a real browser,
+and puts every command, response and screenshot on the pull request. Safe-ops checks
 authorization and reads back what changed. Toolshed preserves working state so
 the next session can pick up the task without archaeological fieldwork.
 
@@ -37,8 +37,7 @@ the next session can pick up the task without archaeological fieldwork.
 |---|---|
 | Focused second opinion, decisions, troubleshooting, research, idea evaluation, or a requested deploy watch | [morpheus](skills/morpheus/SKILL.md) |
 | Structured adversarial review: red/blue team, premortem, devil's advocate, alternatives, failure modes (FMEA), assumptions, inversion, PR/incident gate | [adversarial-review](skills/adversarial-review/SKILL.md) |
-| Run a QA campaign with persistent, re-runnable proof | [mean-qa](skills/mean-qa/SKILL.md) |
-| Prove a UI change works in a real browser, with captured evidence | [ui-proof](skills/ui-proof/SKILL.md) |
+| QA a change or PR, prove a UI or API change works, and put the evidence on the PR | [mean-qa](skills/mean-qa/SKILL.md) |
 | Execute an authorized remote, destructive, or security-relevant operation | [safe-ops](skills/safe-ops/SKILL.md) |
 | Keep durable working state for one task | [toolshed](skills/toolshed/SKILL.md) |
 | Discover, write, review, or evolve acceptance scenarios (Given / When / Then) | [bdd](skills/bdd/SKILL.md) |
@@ -156,7 +155,7 @@ mkdir -p ~/.codex/skills
 cp -R godfly-skills/skills/* ~/.codex/skills/
 ```
 
-Both copy commands install the same 7 skill folders. Individual skills can also
+Both copy commands install the same 6 skill folders. Individual skills can also
 be symlinked. Host-specific paths and tool instructions may need adaptation. Tool access and permissions come
 from the host runtime, not from a skill file.
 
@@ -170,8 +169,8 @@ folder wholesale (delete it, then copy), rather than copying over it.
 These skills are no longer in the installation set and are now in
 [archive/](archive/README.md): `assumptions-check`, `competing-hypotheses`,
 `deep-dive`, `devils-advocate`, `failure-analysis`, `gauntlet`, `handoff`,
-`premortem-postmortem`, `red-blue-review`, `spec-adr-builder` (and, earlier,
-`godfly`). Earlier releases also dropped `root-cause`, `evidence-grounding`,
+`premortem-postmortem`, `red-blue-review`, `spec-adr-builder`, `ui-proof` (merged
+into mean-qa) and, earlier, `godfly`. Earlier releases also dropped `root-cause`, `evidence-grounding`,
 `deployment-monitor`, `troubleshooting-investigator`, and `incident-validator`.
 Move any installed copies outside your host's skill discovery directories if you
 want the current selection. Updating this clone alone does not change copied

@@ -1,117 +1,101 @@
 ---
 name: mean-qa
-description: Adversarial QA campaigns with persistent .proof evidence and re-runnable cases. Use to QA a feature, test a browser flow, verify a change or staging build, design a test campaign, or prepare a PR verification section. Local evidence is mandatory; publishing is a separate authorized action.
+description: Senior adversarial QA that proves what a change does and how, and leaves the proof on the pull request. Reviews the change for development gaps (unmet acceptance criteria, untested paths, config and flag gaps, rollback, observability), runs API, data and real-browser cases, and publishes every command, request, response, payload and screenshot in the PR body, with overflow comments and a local .proof/ run directory. Use to QA a feature or PR, verify on local, preview or staging, test a flow in a browser, prove a UI change works, screenshot or evidence a PR, design a test campaign, or write a PR verification section.
 ---
 
 # MeanQA
 
-Find defects a happy-path pass misses. Preserve what was actually tested,
-including passing, failed, blocked, and interrupted work. Never confuse a test
-plan with a run or a screenshot with working behavior.
+MeanQA has two jobs.
 
-## First action: create the proof
+1. **Find the gaps** a senior QA finds: in the development (what the change forgot) and in the running system (what breaks under attack).
+2. **Prove what happens and how**, with evidence a reviewer can re-run, on the pull request and on disk.
 
-Every campaign gets `<project-root>/.proof/<timestamp-slug>/PROOF.md`,
-including planning-only and blocked campaigns. Before HTTP/browser/database
-probes or test execution, run:
+Evidence is the deliverable. A claim with no captured artifact is not reported as a result.
 
-```sh
-sh <skill-dir>/scripts/start-proof.sh <project-root> <run-slug> <environment> <build>
-```
+## The flow
 
-Derive the project root from the app/service under test; honor a user-specified
-artifact location. Use `unknown` for metadata not yet established. Read back
-the returned document before any probe. The helper never overwrites an earlier
-run and publishes a nonempty initial document. If you are only designing,
-immediately mark it `DESIGNED — NOT RUN`; if blocked, record `BLOCKED`,
-the failed prerequisite and next action. No empty "successful" report.
+Do the steps in this order. Each step names its reference file. Read the four references before the first case; they are short.
 
-If creation fails, stop probes, report the refused path and use another
-user-permitted persistent location if available. Never pretend the file exists.
-This is deterministic **when invoked**, not a runtime hook: skill instructions
-cannot guarantee capture if the agent bypasses them or is killed. An abandoned
-`IN PROGRESS` report means incomplete, never pass.
+1. **Start the proof.** Create the run directory and PROOF.md before any probe:
 
-Update the report and case artifacts after each meaningful case, before the next
-one. Save the pre-change state before changing it. On normal completion record
-the actual end time, verdict, coverage and remaining gaps; on interruption,
-record `INCOMPLETE` if execution still permits a write. Do not overwrite earlier
-runs or silently remove evidence. Keep .proof local/private; check ignore rules
-before staging and never automatically commit its contents.
+   ```sh
+   sh <skill-dir>/scripts/start-proof.sh <project-root> <slug> <environment> <head-sha>
+   ```
 
-## Load only what the task needs
+   The project root is the root of the app or service under test (its `package.json`, `go.mod`, `pyproject.toml` or `.git`). A path the user names wins. The script prints the PROOF.md path. Read it back.
+2. **Pin the target.** Name the PR or commit, the head SHA, the environment and the build that serves it. Prove the running build is that SHA. See [capture.md](references/capture.md).
+3. **Review the change for gaps.** Read the diff, the ticket and its acceptance criteria. Map each criterion to a case. List the gaps. See [gaps.md](references/gaps.md).
+4. **Design the cases.** Work the four questions, then the cheap probes, ranked by blast radius. See [attack.md](references/attack.md).
+5. **Run and capture.** One case at a time. After each case, write its row, its evidence block and its `cases/<id>/` files, then start the next case. See [capture.md](references/capture.md).
+6. **Publish.** Close the verdict. Put the report in the PR body, with overflow in numbered comments. Read the PR back. See [publish.md](references/publish.md).
 
-- Always read [findings.md](references/findings.md): oracle, false-positive
-  control and honest verdicts.
-- Planning: read [attack.md](references/attack.md) and
-  [cases.md](references/cases.md). Mark every proposed case not run.
-- Execution: read [environment.md](references/environment.md) and
-  [evidence.md](references/evidence.md) before probing. Add attack/cases when
-  designing new cases, not when simply re-running existing ones.
-- Report formatting: read [report.md](references/report.md) when writing the
-  completed report.
-- External publishing only: read [publishing.md](references/publishing.md)
-  once publishing is requested or already authorized. A PR existing, or a
-  request to verify a PR, does not authorize uploads, comments or body edits.
+A planning-only request stops after step 4. Its verdict is `DESIGNED — NOT RUN`, and every case says `not run`.
 
-## Four questions before the happy path
+## The four questions
 
-1. When a dependency cannot answer, what value does it return and how does
-   the caller distinguish failure from "nothing found"? Trace error channels;
-   do not assume the absence of an error return means success.
-2. What is the harm in both directions — wrongful action and wrongful denial?
-3. What invariant must always hold, and what sequence breaks it? Check
-   conserved value, one intent/one effect, legal transitions and ownership.
-4. What is irreversible — charges, disclosures, notifications, deletion?
-   Prioritize by consequence and recoverability, not convenient tests.
+Ask these before the happy path. They find what nothing else finds.
 
-Then run applicable cheap probes against in-scope, authorized test targets:
-malformed input, wrong types, missing/extra fields, untrusted client values,
-boundaries, duplicate/concurrent requests and unauthorized identities.
-Record skipped or unavailable probes with the coverage consequence.
-A mandate to test never authorizes a production mutation or another tenant.
+1. **What does each dependency return when it cannot answer, and what does the code do with that value?** A call with no error return yields `""`, `false`, `0` or an empty list. A gate that looks for a match then finds none and lets everything through. "Nothing found" and "could not check" must never be the same value.
+2. **What is the harm in both directions?** Wrongful action and wrongful denial are both harm.
+3. **What must always be true, and what sequence breaks it?** Value conserved, one intent one effect, legal transitions only, actors touch only what they own.
+4. **What is irreversible?** A charge, a sent message, a disclosure, a deletion. These get the harshest cases.
 
-Predict the oracle and fails-if condition before each case. Use stable case
-IDs, exact sanitized inputs, observed outcome and a repeatable reproduction.
-A surprising intentional policy is a policy question, not automatically a bug.
-Rank findings by demonstrated consequence; name unknown causes as unknown.
-Run the relevant baseline before an authorized fix and the same proof plus
-focused regressions afterward. QA alone does not authorize fixing.
+## Status words
 
-## Evidence volume without token waste
+Use these words and no others, in PROOF.md, the PR and chat.
 
-Capture as much **relevant, safe, nonduplicative evidence** as available:
-commands and exit codes, requests/responses with timings, direct persistence
-reads, logs/traces, browser steps, before/after screenshots, console/network,
-head/build identity and environment scope. Mark unavailable channels explicitly;
-missing telemetry is not a clean result. Synthetic fixtures first.
+| Case result | Meaning |
+|---|---|
+| `✅ pass` | Ran. The observation matched the expectation. The artifact is retained. |
+| `❌ fail` | Ran. The observation broke the `Fails if` condition. The artifact is retained. |
+| `⛔ blocked` | Could not run. The block names the missing prerequisite. |
+| `➖ not run` | Designed only, or skipped. The block says why. |
+| `❔ unproven` | Ran, but no artifact was retained. Never counted as a pass. |
 
-Keep complete sanitized captures in `cases/<id>/`; give every results row a
-matching evidence block with observation, decisive excerpt and links to complete
-files. Embed screenshots in the report. Do not paste large bodies repeatedly
-into the report or conversation. Preserve every executed case, not merely a
-sample. Cap oversized/continuous captures with an explicit bound and truncation
-notice; never claim an uncaptured remainder was preserved.
+| Verdict | When |
+|---|---|
+| `IN PROGRESS` | Set by start-proof.sh. Replaced at the end. |
+| `SHIP` | Every must-run case ran. No case failed. No gap blocks the merge. |
+| `HOLD` | A case failed with real harm, or a gap blocks the merge. |
+| `CONDITIONAL` | Nothing failed, but a named check is still open. The verdict line names the check and who runs it, for example a post-merge case. |
+| `INCOMPLETE — stopped after <id>` | The run ended before the must-run cases finished. |
+| `BLOCKED` | No case could run. The verdict line names the prerequisite. |
+| `DESIGNED — NOT RUN` | Planning only. |
 
-Keep tool output bounded: inspect indexed files and targeted excerpts; don't
-re-read all logs or full reports after each append. Chat gets findings, coverage,
-gaps and a proof link. More evidence on disk need not mean more model tokens.
-Report measured usage only if exposed by the runtime; otherwise label token
-estimates and do not invent a dollar cost.
+A stakeholder can accept a risk. Record the acceptance under the verdict with the name, the date and the reason. It never changes the verdict.
 
-## Safety and finish
+## Findings
 
-Never print, extract, paste or persist credentials, session cookies, auth
-headers or personal data. Redact before writing or displaying artifacts;
-screenshots and network bodies can leak secrets too. If safe capture is
-impossible, retain sanitized observations and mark the resulting proof gap.
+- **Name the oracle.** Write each defect as: observed X; this is inconsistent with Y; because Z (the evidence). Y is a quoted spec line, a sibling endpoint or screen that should agree, a prior behaviour, a conservation rule, a round trip (do then undo), or a metamorphic relation (all pages joined equal the unpaged result). With no oracle, it is a question, not a defect.
+- **Non-reproduction is not disproof.** Keep an intermittent failure when an artifact supports it; state attempts and occurrences. Never repeat a charge, a disclosure or a deletion to strengthen a report.
+- **Defects, gaps and questions stay separate.** A defect is an observed failure. A gap is something the change is missing (see gaps.md). A question is something you could not settle.
+- **A documented, signed-off behaviour is not a defect.** Test it as designed. If the policy looks wrong, ask it as a question.
+- **Rule out the test harness first.** Before you report a defect, show that the probe reached the code under test. A port-forward can fail to bind while an old local process answers on the same port. A probe can change the process environment while the code reads injected config. Either one makes a false defect.
+- **Prove it could fail.** A check that returns the same result with or without the bug is not evidence. Every proof has a positive control: one input that must be refused, or one run that must fail. For a bug fix, show fail-to-pass: the old code reproduces the defect, the new code refuses it.
+- **Every failure carries its mechanism.** What should happen, what happened, why (the code path, or "could not tell from outside"), and what it costs, said through the person harmed.
+- **Safe language.** Never write "works", "verified", "no bugs" or "fully tested". Write: "I ran X. I observed Y. I did not test W."
 
-An unknown environment is production. Production stays bounded/read-only under
-the user's applicable confirmation rules. Prove a mutation target is synthetic
-and the action authorized before using it. Do not switch accounts, log the user
-out, change global browser configuration, or publish evidence just to finish QA.
+## Safety
 
-Before finishing, check each row has real, readable evidence files, all image
-links resolve, and the report matches what ran. Leave user tabs/sessions intact;
-clean up only resources created for this run. State what was not tested.
-A stakeholder's risk acceptance is separate from the evidence-based verdict.
+- An environment you cannot classify is production. Production is read-only, bounded, and confirmed with the user before the first read.
+- Prove a mutation target is synthetic before you mutate it. A test mandate never covers another tenant or real money.
+- Never write credentials, tokens, cookies, session values or personal data into any artifact, the PR or chat. Read only the one secret key a case needs. Never dump a whole secret object.
+- Never log the user out, switch their account or change global browser settings. Use an isolated browser context for other identities.
+- Fix nothing you were asked to verify, unless the user opted in. Document the defect first.
+- Clean up what you created: port-forwards, pods, dev servers, temporary rows, flag overrides, viewport emulation, tabs. Name anything left running and the command that stops it.
+
+## Ask, or assume and record
+
+Ask the user when the expected behaviour is undefined, the safe mutation scope cannot be proven, access blocks the run, or the finding is a product-policy question. Never ask what a read-only check can answer.
+
+As a subagent, nobody answers. Write each assumption that could change the verdict under `Assumptions` in PROOF.md, at most three, and mark the verdict conditional on them.
+
+## Finish
+
+1. Every results row has one evidence block and one `cases/<id>/` folder. Count them.
+2. Every image reference resolves to a file on disk and, when there is a PR, to an uploaded URL.
+3. The verdict, the worst-first list, the gaps and the residual risk match what ran.
+4. The PR body and every overflow comment were read back after the write.
+5. The chat reply gives the verdict, the worst findings, the gaps, what was not tested, the PR link and the run directory path.
+
+If the summary and the detail disagree, the summary is wrong.
