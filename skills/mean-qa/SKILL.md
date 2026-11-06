@@ -94,7 +94,7 @@ As a subagent, nobody answers. Write each assumption that could change the verdi
 
 1. Every results row has one evidence block and one `cases/<id>/` folder. Count them.
 2. Every image reference resolves to a file on disk and, when there is a PR, to an uploaded URL.
-3. The verdict, the worst-first list, the gaps and the residual risk match what ran.
+3. The verdict, the worst-first list, the gaps, the residual risk and the questions match the final evidence. Re-read each one against the last case that ran: a gap or risk a later case closed is removed, or marked closed by that case.
 4. The PR body and every overflow comment were read back after the write.
 5. The chat reply gives the verdict, the worst findings, the gaps, what was not tested, the PR link and the run directory path.
 

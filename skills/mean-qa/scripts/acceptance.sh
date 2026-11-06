@@ -152,4 +152,44 @@ if python3 "$BODY" --proof "$PB/PROOF.md" --out "$PB/noimages" >/dev/null 2>&1; 
   exit 1
 fi
 
+# Raw output: evidence and screenshots stay in the body, raw logs overflow, pointers name and link the comments.
+RO=$TMP_ROOT/raw
+mkdir "$RO"
+python3 - "$RO" <<'PY'
+import sys
+d = sys.argv[1]
+lines = ["<!-- mean-qa:begin -->", "## Verification (QA report)", "", "**Verdict:** SHIP", "", "### Evidence", ""]
+for i in range(1, 9):
+    lines += ["#### ST-%02d — staging case %d" % (i, i), "Full output: [ST-%02d raw output](#st-%02d-raw-output)." % (i, i),
+              "", "![ST-%02d](https://example.test/st%d.png)" % (i, i), ""]
+lines += ["### Residual risk", "- tail stays in the body", "", "### Raw output", ""]
+for i in range(1, 9):
+    lines += ["#### ST-%02d raw output" % i, "<details><summary>raw</summary>", "", "```text"]
+    lines += ["%d container line %d %s" % (i, n, "n" * 60) for n in range(80)]
+    lines += ["```", "</details>", ""]
+lines += ["<!-- mean-qa:end -->"]
+open(d + "/PROOF.md", "w").write("\n".join(lines) + "\n")
+PY
+python3 "$BODY" --proof "$RO/PROOF.md" --sha abc123 --limit 40000 --out "$RO/out" >/dev/null
+printf '2\thttps://example.test/c2\n' > "$RO/links.tsv"
+python3 "$BODY" --proof "$RO/PROOF.md" --sha abc123 --limit 40000 --links "$RO/links.tsv" --out "$RO/linked" >/dev/null
+python3 - "$RO" <<'PY'
+import glob, sys
+d = sys.argv[1]
+body = open(d + "/out/body.md").read()
+comments = sorted(glob.glob(d + "/out/comment-*.md"))
+assert len(comments) == 1, comments
+for i in range(1, 9):
+    assert "#### ST-%02d — staging case %d" % (i, i) in body, i
+    assert "https://example.test/st%d.png" % i in body, i
+assert "- tail stays in the body" in body and "### Raw output" in body
+pointers = [l for l in body.split("\n") if "continues in" in l]
+assert len(pointers) == 1, pointers
+assert pointers[0].endswith("continues in PR comment **QA evidence 2/2**._"), pointers[0]
+assert " to **2/2**" not in body
+linked = open(d + "/linked/body.md").read()
+assert "[QA evidence 2/2](https://example.test/c2)" in linked, "pointer not linked"
+assert open(d + "/linked/comment-02.md").read() == open(comments[0]).read(), "links changed a comment"
+PY
+
 echo "mean-qa acceptance: PASS"

@@ -64,7 +64,7 @@ Screenshots live at the run-directory root, numbered in capture order (`03-appro
 | A staging run | Raw script output, pod log lines with timestamps, and the cleanup done. |
 | Performance | The real query with its real parameters, the data volume, the build. Staging volume is not production proof. |
 
-**Save the whole output before you read it.** Run every command into its case file first: `go test ./pkg/... 2>&1 | tee cases/TC-08/response.txt`. Never pipe through `tail`, `head` or `grep` before saving; a failure cut off that way is lost, and a flaky first run cannot be reproduced. The evidence block may show a filtered excerpt above the `<details>`, but the `<details>` holds the full file.
+**Save the whole output before you read it.** Run every command into its case file first, in UTC: `TZ=UTC go test ./pkg/... 2>&1 | tee cases/TC-08/response.txt`. Never pipe through `tail`, `head` or `grep` before saving; a failure cut off that way is lost, and a flaky first run cannot be reproduced. Long output is published whole under Raw output; the evidence block keeps its signal lines (publish.md, rule 3).
 
 Curl with timing:
 
