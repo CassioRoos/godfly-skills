@@ -2,15 +2,19 @@
 """Build a PR body and numbered overflow comments from a MeanQA PROOF.md.
 
 The report goes between <!-- mean-qa:begin --> and <!-- mean-qa:end --> in the
-PR body; the rest of the body is kept. Evidence blocks (#### headings) that do
-not fit go to comment-02.md, comment-03.md, ... in order. A block too large for
-one comment is split with its code fences and <details> re-opened. The script
-exits non-zero if any report line is missing from the output, if any output is
-over the limit, or if a local image has no uploaded URL.
+PR body; the rest of the body is kept. Every #### block (evidence, then raw
+output) is a unit. All other report text stays in the body. Units fill the body
+in document order; from the first unit that does not fit, the rest go to
+comment-02.md, comment-03.md, ... in order, and each run of units gets a pointer
+line naming the comments. A unit too large for one comment is split with its
+code fences and <details> re-opened. --links maps comment numbers to URLs so
+the pointers link them. The script exits non-zero if any report line is missing
+from the output, if any output is over the limit, or if a local image has no
+uploaded URL.
 
 Usage:
   pr-body.py --proof PROOF.md --out DIR [--pr-body CURRENT.md] [--images MAP.tsv]
-             [--root REPO_ROOT] [--sha HEAD_SHA] [--limit 65536]
+             [--links LINKS.tsv] [--root REPO_ROOT] [--sha HEAD_SHA] [--limit 65536]
 """
 import argparse
 import glob
@@ -82,26 +86,62 @@ def wrap(lines):
     return out
 
 
-def split_report(lines):
-    """Return head, evidence units, tail. A unit starts at a '#### ' heading and
-    ends at the next heading of level 1-4 or the end marker. Lines inside code
-    fences are never headings."""
+def segments(lines):
+    """Split the report into ("text", lines) and ("run", [unit, ...]) segments.
+    A unit starts at a '#### ' heading and ends at the next heading of level 1-4
+    or the end marker. Lines inside code fences are never headings."""
     heading = []
     fence, depth = None, 0
     for line in lines:
         heading.append(fence is None and (re.match(r"^#{1,4} ", line) is not None or line == END))
         fence, depth = fence_state(line, fence, depth)
-    starts = [i for i, line in enumerate(lines) if heading[i] and line.startswith("#### ")]
-    if not starts:
-        return lines, [], []
-    units, i = [], starts[0]
-    while i < len(lines) and heading[i] and lines[i].startswith("#### "):
-        j = i + 1
-        while j < len(lines) and not heading[j]:
-            j += 1
-        units.append(lines[i:j])
-        i = j
-    return lines[:starts[0]], units, lines[i:]
+    out, i = [], 0
+    while i < len(lines):
+        if heading[i] and lines[i].startswith("#### "):
+            run = []
+            while i < len(lines) and heading[i] and lines[i].startswith("#### "):
+                j = i + 1
+                while j < len(lines) and not heading[j]:
+                    j += 1
+                run.append(lines[i:j])
+                i = j
+            out.append(("run", run))
+        else:
+            j = i + 1
+            while j < len(lines) and not (heading[j] and lines[j].startswith("#### ")):
+                j += 1
+            out.append(("text", lines[i:j]))
+            i = j
+    return out
+
+
+def unit_name(unit):
+    return unit[0][5:].split(" — ")[0].strip()
+
+
+def load_links(path):
+    links = {}
+    if not path:
+        return links
+    with open(path, encoding="utf-8") as handle:
+        for number, raw in enumerate(handle, 1):
+            line = raw.rstrip("\n")
+            if not line.strip():
+                continue
+            parts = line.split("\t")
+            if len(parts) != 2 or not parts[0].strip().isdigit() or not parts[1].startswith("http"):
+                fail(2, "%s:%d: expected '<comment number>\\t<url>'" % (path, number))
+            links[int(parts[0])] = parts[1].strip()
+    return links
+
+
+def pointer(names, first, last, total, links):
+    def label(n):
+        text = "QA evidence %d/%d" % (n, total)
+        return "[%s](%s)" % (text, links[n]) if n in links else "**%s**" % text
+    what = names[0] if len(names) == 1 else "%s to %s" % (names[0], names[-1])
+    where = "PR comment " + label(first) if first == last else "PR comments %s to %s" % (label(first), label(last))
+    return "_%s continues in %s._" % (what, where)
 
 
 def fence_state(line, fence, depth):
@@ -156,6 +196,7 @@ def main():
     parser.add_argument("--out", required=True)
     parser.add_argument("--pr-body")
     parser.add_argument("--images")
+    parser.add_argument("--links")
     parser.add_argument("--root")
     parser.add_argument("--sha", default="unknown")
     parser.add_argument("--limit", type=int, default=65536)
@@ -183,43 +224,56 @@ def main():
             before = current.rstrip("\n") + "\n\n" if current.strip() else ""
 
     source = wrap(report.split("\n"))
-    head, units, tail = split_report(source)
+    parts = segments(source)
+    runs = sum(1 for kind, _ in parts if kind == "run")
     limit = args.limit - MARGIN
-    pointer_reserve = 400
-    room = limit - glen(before) - glen(after) - size(head) - size(tail) - pointer_reserve
+    pointer_reserve = 600
+    text_size = sum(size(lines) for kind, lines in parts if kind == "text")
+    room = limit - glen(before) - glen(after) - text_size - pointer_reserve * runs
     if room < 0:
         fail(5, "the PR text outside the evidence blocks is over the limit; shorten the narrative")
 
-    kept, used = [], 0
-    for unit in units:
-        if used + size(unit) > room:
-            break
-        kept.append(unit)
-        used += size(unit)
-    overflow = units[len(kept):]
+    used, full = 0, False
+    kept, overflow = set(), []
+    for kind, run in parts:
+        if kind != "run":
+            continue
+        for unit in run:
+            if not full and used + size(unit) <= room:
+                kept.add(id(unit))
+                used += size(unit)
+            else:
+                full = True
+                overflow.append(unit)
 
     header_reserve = 120
-    pieces = []
+    comments, current, home = [], [], {}
     for unit in overflow:
-        pieces.extend(chunk(unit, limit - header_reserve))
-    comments, current = [], []
-    for piece in pieces:
-        if current and size(current) + size(piece) > limit - header_reserve:
-            comments.append(current)
-            current = []
-        current += piece
+        for piece in chunk(unit, limit - header_reserve):
+            if current and size(current) + size(piece) > limit - header_reserve:
+                comments.append(current)
+                current = []
+            current += piece
+            home.setdefault(id(unit), []).append(len(comments) + 2)
     if current:
         comments.append(current)
 
     total = len(comments) + 1
-    body_lines = list(head)
-    for unit in kept:
-        body_lines += unit
-    if overflow:
-        first = overflow[0][0][5:].split(" ")[0]
-        last = overflow[-1][0][5:].split(" ")[0]
-        body_lines += ["", "_Evidence for %s to %s continues in the PR comments titled **QA evidence 2/%d** to **%d/%d**._" % (first, last, total, total, total), ""]
-    body_lines += tail
+    links = load_links(args.links)
+    body_lines, expected = [], []
+    for kind, lines in parts:
+        if kind == "text":
+            body_lines += lines
+            expected += lines
+            continue
+        moved = [u for u in lines if id(u) not in kept]
+        for unit in lines:
+            if id(unit) in kept:
+                body_lines += unit
+                expected += unit
+        if moved:
+            numbers = [n for u in moved for n in home[id(u)]]
+            body_lines += ["", pointer([unit_name(u) for u in moved], min(numbers), max(numbers), total, links), ""]
     body = before + "\n".join(body_lines) + after
     if not body.endswith("\n"):
         body += "\n"
@@ -229,7 +283,7 @@ def main():
         text = "<!-- mean-qa:evidence %d/%d sha=%s -->\n## QA evidence %d/%d\n\n" % (number, total, args.sha, number, total)
         rendered.append(text + "\n".join(lines) + "\n")
 
-    ok, line = is_subsequence(head + [l for u in kept for l in u] + tail, body.split("\n"))
+    ok, line = is_subsequence(expected, body.split("\n"))
     if ok:
         ok, line = is_subsequence([l for u in overflow for l in u], "\n".join(rendered).split("\n"))
     if not ok:
@@ -243,7 +297,7 @@ def main():
         os.remove(stale)
     with open(os.path.join(args.out, "body.md"), "w", encoding="utf-8") as handle:
         handle.write(body)
-    print("body.md\t%d chars\t%d evidence blocks" % (glen(body), len(kept)))
+    print("body.md\t%d chars\t%d blocks" % (glen(body), len(kept)))
     for number, text in enumerate(rendered, 2):
         name = "comment-%02d.md" % number
         with open(os.path.join(args.out, name), "w", encoding="utf-8") as handle:

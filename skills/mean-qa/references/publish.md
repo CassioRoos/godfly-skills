@@ -68,6 +68,16 @@ exp-7f21 | approved | 2026-08-07 09:14:02+00
 
 ![TC-04: approve dialog at 390px, Confirm in frame](03-approve-dialog-390.png)
 
+#### TC-09 — Unit tests of the approve guard
+**Expected:** every named test passes. **Observed:** 4 of 4 pass, exit 0. Full output: [TC-09 raw output](#tc-09-raw-output). **Head SHA:** 2e195b2.
+
+```text
+$ go test -run 'TestApprove' ./expenses/...
+--- PASS: TestApproveRefusesPaid (0.01s)
+ok  	example.test/expenses	0.412s
+exit=0
+```
+
 ### Regression
 | Gate | Command | Result |
 |---|---|---|
@@ -84,19 +94,31 @@ exp-7f21 | approved | 2026-08-07 09:14:02+00
 
 ### Assumptions
 - <Subagent runs only: assumptions that could change the verdict.>
+
+### Raw output
+
+#### TC-09 raw output
+<details><summary>TC-09 · 312 lines</summary>
+
+```text
+<every line the command printed, in order>
+```
+</details>
 <!-- mean-qa:end -->
 ````
 
 Rules for the report:
 
 1. **Every case gets an evidence block**, passes included. Twelve rows means twelve `####` blocks. Count them.
-2. **Every block carries the literal capture**: the exact command, the full response body, the status and the time; the direct read; console and network for UI steps. Collapse long captures in `<details>`; never shorten them.
-3. **Embed every screenshot** at the point it is evidence, healthy screens included. Before and after sit next to each other.
-4. **A failed case is a ❌ row,** never a missing row.
-5. **Omit a section only when it has nothing in it.** Coverage, residual risk and the regression gates are never empty on an executed run.
-6. **Final content only.** No revision markers, no "updated", no changelog.
-7. **One source line per paragraph.** GitHub renders a newline inside a paragraph as a line break.
-8. **The deliverable never names this skill or its internal terms.** The reader wants the risk.
+2. **Every block carries the literal capture**: the exact command, the full response body, the status and the time; the direct read; console and network for UI steps. Collapse long captures in `<details>`.
+3. **Long output goes to Raw output, whole.** When a command prints more than about 40 lines, the evidence block keeps the signal lines verbatim and in order: requests, responses, assertions, test names, errors, warnings, failures and the exit line. The whole output goes under `### Raw output` as `#### <id> raw output`, linked from the block. Nothing is dropped; it only moves to the end.
+4. **Order the evidence blocks by what a reviewer needs first:** ❌ fail, then ❔ unproven and ⛔ blocked, then the environment closest to production (production, staging, preview, local), then the regression gates. The body fills in this order, so the strongest proof and the screenshots stay in the body.
+5. **Embed every screenshot** at the point it is evidence, healthy screens included. Before and after sit next to each other.
+6. **A failed case is a ❌ row,** never a missing row.
+7. **Omit a section only when it has nothing in it.** Coverage, residual risk and the regression gates are never empty on an executed run.
+8. **Final content only.** No revision markers, no "updated", no changelog.
+9. **One source line per paragraph.** GitHub renders a newline inside a paragraph as a line break.
+10. **The deliverable never names this skill or its internal terms.** The reader wants the risk.
 
 ## 3. Put it on the PR
 
@@ -118,9 +140,8 @@ GitHub rejects a PR body or comment over 65,536 characters. `scripts/pr-body.py`
      --images pr/images.tsv --root <absolute repo path> --sha <head-sha> --out pr/
    ```
 
-   Leave out `--images` when the run has no screenshots. The script replaces the text between the markers and keeps the rest of the body. It fills the body with the report and as many evidence blocks as fit, in order. The rest go to `pr/comment-02.md`, `pr/comment-03.md`, …, each under the limit; a capture too big for one comment is split across several with its code fences and `<details>` re-opened. It replaces local image names with URLs, and the repo path with `<repo root>`. It exits non-zero if any line of the report is missing from the output, or if a local image has no URL.
-4. **Write the body:** `gh pr edit <n> --body-file pr/body.md`
-5. **Write the comments.** Update the existing evidence comments in place; create only the missing ones:
+   Leave out `--images` when the run has no screenshots. The script replaces the text between the markers and keeps the rest of the body. All report text stays in the body. The `####` blocks, evidence then raw output, fill the body in order; the rest go to `pr/comment-02.md`, `pr/comment-03.md`, …, each under the limit, and the body gets a pointer line where they left. A capture too big for one comment is split across several with its code fences and `<details>` re-opened. It replaces local image names with URLs, and the repo path with `<repo root>`. It exits non-zero if any line of the report is missing from the output, or if a local image has no URL.
+4. **Write the comments first.** Update the existing evidence comments in place; create only the missing ones:
 
    ```bash
    gh api "repos/{owner}/{repo}/issues/<n>/comments" --paginate \
@@ -130,6 +151,7 @@ GitHub rejects a PR body or comment over 65,536 characters. `scripts/pr-body.py`
    ```
 
    An old evidence comment the new run no longer needs gets its body replaced with `<!-- mean-qa:evidence superseded -->` and one line saying the current report is in the PR body. Never delete comments.
+5. **Link them, then write the body.** Write `pr/links.tsv`, one `<comment number>\t<comment URL>` line per comment, and re-run step 3 with `--links pr/links.tsv`. The comments come out the same; the pointer lines now link them. Then `gh pr edit <n> --body-file pr/body.md`.
 6. **Read it back.** Fetch the body and each comment. Check the verdict line, the case count and that every image URL loads. Report the PR link and the comment links in chat.
 
 A new push to the PR makes the report stale. Re-run the cases on the new head SHA and publish again.
